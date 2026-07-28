@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-labelledby="t d">
+  <title id="t">SYNC</title>
+  <desc id="d">SYNC — couple alarm app. Two overlapping arc strokes forming a synchronized wave over a black field, with the monospace wordmark SYNC beneath.</desc>
+  <rect width="512" height="512" fill="#000000"/>
+  <!-- Two overlapping half-circles, square endcaps, heavy stroke. Center at (256,200). -->
+  <g stroke="#FFFFFF" stroke-width="32" fill="none" stroke-linecap="square">
+    <path d="M 96 200 A 160 160 0 0 1 416 200"/>
+    <path d="M 96 200 A 160 160 0 0 0 416 200" transform="translate(48,0)"/>
+  </g>
+  <!-- Wordmark -->
+  <g fill="#FFFFFF" font-family="'Roboto Mono','SF Mono','Menlo','Consolas',monospace" font-weight="800" font-size="108" letter-spacing="22" text-anchor="middle">
+    <text x="256" y="430">SYNC</text>
+  </g>
+  <!-- micro rule under wordmark -->
+  <rect x="156" y="372" width="200" height="3" fill="#FFFFFF"/>
+</svg>
