@@ -9,6 +9,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../api_config.dart';
 import '../models/alarm_log_model.dart';
 import '../models/alarm_model.dart';
+import '../models/announcement_model.dart';
 import '../models/nudge_model.dart';
 import '../models/pairing_model.dart';
 import '../models/profile_model.dart';
@@ -341,9 +342,11 @@ class ApiService {
 
   // ─── Announcements ─────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> fetchAnnouncements({int limit = 20}) async {
+  Future<List<AnnouncementModel>> fetchAnnouncements({int limit = 20}) async {
     final res = await _getList('/v1/announcements?limit=$limit');
-    return res.cast<Map<String, dynamic>>();
+    return res
+        .map((e) => AnnouncementModel.fromMap(e as Map<String, dynamic>))
+        .toList(growable: false);
   }
 
   // ─── WebSocket (Realtime Nudges) ───────────────────────────────────────
@@ -363,7 +366,7 @@ class ApiService {
     _wsController = StreamController<NudgeModel>();
 
     _wsConnect();
-    return _wsController.stream.asBroadcastStream();
+    return _wsController!.stream.asBroadcastStream();
   }
 
   void _wsConnect() {

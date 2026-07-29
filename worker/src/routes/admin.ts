@@ -14,12 +14,10 @@ import { logEvent } from '../logger.js';
 
 const admin = new Hono<HonoEnv>();
 
-const ADMIN_SECRET = 'sync-admin-2026';
-
 // Middleware: require admin secret
 admin.use('*', async (c, next) => {
   const secret = c.req.header('x-admin-secret');
-  if (secret !== ADMIN_SECRET) {
+  if (secret !== c.env.ADMIN_SECRET) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   await next();

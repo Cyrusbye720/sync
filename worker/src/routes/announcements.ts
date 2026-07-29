@@ -19,15 +19,13 @@ import { logEvent } from '../logger.js';
 
 const announcements = new Hono<HonoEnv>();
 
-const ANNOUNCEMENT_SECRET = 'sync-admin-2026';
-
 // POST /v1/announcements — send an announcement
 announcements.post('/', async (c) => {
   const authHeader = c.req.header('authorization');
   const secret = c.req.header('x-admin-secret');
 
   // Allow either bearer token (authenticated user) or admin secret
-  const isAdmin = secret === ANNOUNCEMENT_SECRET;
+  const isAdmin = secret === c.env.ADMIN_SECRET;
   let userId: string | null = null;
 
   if (!isAdmin) {
@@ -192,7 +190,7 @@ announcements.get('/', async (c) => {
 // DELETE /v1/announcements/:id — delete an announcement (admin only)
 announcements.delete('/:id', async (c) => {
   const secret = c.req.header('x-admin-secret');
-  if (secret !== ANNOUNCEMENT_SECRET) {
+  if (secret !== c.env.ADMIN_SECRET) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 

@@ -14,6 +14,7 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string;
   FIREBASE_SERVICE_ACCOUNT_JSON: string;
   SESSION_ENCRYPTION_KEY: string; // 64 hex chars (256-bit)
+  ADMIN_SECRET: string;
 }
 
 // ─── Firebase Service Account ─────────────────────────────────────────────────

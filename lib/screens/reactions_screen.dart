@@ -61,7 +61,7 @@ class ReactionsScreen extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: dismissed.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) => _ReactionRow(log: dismissed[i]),
     );
   }

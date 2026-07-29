@@ -219,7 +219,7 @@ class AlarmService {
       final title = settings.notificationSettings.title;
       final parts = title.split('|');
       if (parts.length >= 3) {
-        final minutes = int.tryParse(parts[2]!);
+        final minutes = int.tryParse(parts[2]);
         if (minutes != null && minutes > 0) return minutes;
       }
     } catch (_) {}
