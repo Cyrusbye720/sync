@@ -4,18 +4,21 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alarm_model.dart';
+import '../models/nudge_model.dart';
 import '../models/profile_model.dart';
 import '../providers/alarm_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/connectivity_provider.dart';
+import '../providers/nudge_provider.dart';
 import '../providers/pairing_provider.dart';
-import '../services/supabase_service.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/alarm_card.dart';
 import '../widgets/monochrome_button.dart';
 import '../widgets/partner_header.dart';
 import '../widgets/stats_card.dart';
 import 'alarm_form_screen.dart';
+import 'incoming_nudge_screen.dart';
 import 'pair_screen.dart';
 import 'reactions_screen.dart';
 
@@ -30,6 +33,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
+
+  /// Nudge ids we have already shown to the user. Prevents pushing
+  /// IncomingNudgeScreen repeatedly when the Realtime stream emits
+  /// the same row in successive updates.
+  final Set<String> _shownNudgeIds = {};
 
   @override
   void initState() {
@@ -48,20 +56,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Future<void> _nudge() async {
     final partner = ref.read(pairingProvider).partner;
-    final username = ref.read(authProvider).profile?.username ?? 'someone';
     if (partner == null) return;
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await SupabaseService.instance.client.functions.invoke(
-        'nudge',
-        body: {
-          'targetUserId': partner.id,
-          'fromUsername': username,
-        },
-      );
+      // Worker handles insert + FCM push + WebSocket fan-out in one call.
+      await ApiService.instance.sendNudge(partner.id);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Nudge sent.')),
+        const SnackBar(content: Text('Nudge sent. They will see it now.')),
       );
     } catch (e) {
       messenger.showSnackBar(
@@ -111,12 +113,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
-  void _openAlarmForm({required String ownerId}) {
+  void _openAlarmForm({required String ownerId, AlarmModel? existing}) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AlarmFormScreen(ownerId: ownerId),
+        builder: (_) => AlarmFormScreen(ownerId: ownerId, existing: existing),
       ),
     );
+  }
+
+  /// Push the IncomingNudgeScreen if the stream produced a new
+  /// unread nudge we have not surfaced yet. Invoked from build()
+  /// via `ref.watch(nudgeStreamProvider).whenOrNull(data: ...)`.
+  void _maybeShowIncomingNudge(List<NudgeModel> list) {
+    for (final n in list) {
+      if (n.readAt != null) continue;
+      if (_shownNudgeIds.contains(n.id)) continue;
+      _shownNudgeIds.add(n.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => IncomingNudgeScreen(nudge: n),
+          ),
+        );
+      });
+      break;
+    }
   }
 
   /// Compute the current time as observed in the partner's timezone.
@@ -135,6 +157,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final pairing = ref.watch(pairingProvider);
     final alarms = ref.watch(alarmListProvider);
     final stats = ref.watch(alarmStatsProvider);
+    final incoming = ref.watch(nudgeStreamProvider);
+    incoming.whenOrNull(data: _maybeShowIncomingNudge);
 
     final me = auth.userId;
     final partner = pairing.partner;
@@ -214,7 +238,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   onAdd: me == null ? null : () => _openAlarmForm(ownerId: me),
                   onToggle: (a, v) =>
                       ref.read(alarmListProvider.notifier).toggle(a.id, v),
-                  onEdit: (a) => _openAlarmForm(ownerId: a.ownerId),
+                  onEdit: (a) => _openAlarmForm(ownerId: a.ownerId, existing: a),
                   onDelete: (a) =>
                       ref.read(alarmListProvider.notifier).delete(a.id),
                 ),
@@ -227,7 +251,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       : () => _openAlarmForm(ownerId: partnerId),
                   onToggle: (a, v) =>
                       ref.read(alarmListProvider.notifier).toggle(a.id, v),
-                  onEdit: (a) => _openAlarmForm(ownerId: a.ownerId),
+                  onEdit: (a) => _openAlarmForm(ownerId: a.ownerId, existing: a),
                   onDelete: (a) =>
                       ref.read(alarmListProvider.notifier).delete(a.id),
                 ),
@@ -278,7 +302,7 @@ class _AlarmList extends ConsumerWidget {
                 Text(
                   isMine
                       ? 'YOU HAVE NO ALARMS SET.'
-                      : 'YOU HAVEN'T SET ANYTHING FOR THEM YET.',
+                      : "YOU HAVEN'T SET ANYTHING FOR THEM YET.",
                   style: const TextStyle(
                     color: AppColors.white,
                     fontFamily: 'RobotoMono',

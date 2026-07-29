@@ -1,13 +1,13 @@
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'api_config.dart';
 import 'providers/auth_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'providers/pairing_provider.dart';
@@ -16,10 +16,9 @@ import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/pair_screen.dart';
 import 'services/alarm_service.dart';
+import 'services/api_service.dart';
 import 'services/battery_service.dart';
 import 'services/fcm_service.dart';
-import 'services/supabase_service.dart';
-import 'supabase_config.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -33,24 +32,51 @@ Future<void> main() async {
     ),
   );
 
-  // Load environment from .env before initializing Supabase.
-  await dotenv.load(fileName: '.env');
-  await SupabaseService.initialize();
+  Object? startupError;
+  try {
+    await _initializeAppServices();
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(exception: error, stack: stackTrace),
+    );
+    startupError = error;
+  }
+
+  runApp(ProviderScope(child: SyncApp(startupError: startupError)));
+}
+
+Future<void> _initializeAppServices() async {
+  ApiConfig.validate();
+  await ApiService.initialize();
 
   tzdata.initializeTimeZones();
   try {
-    final tzName = await FlutterNativeTimezone.getLocalTimezone();
+    final dynamic tzObj = await FlutterTimezone.getLocalTimezone();
+    final String tzName = tzObj is String ? tzObj : (tzObj.name ?? tzObj.toString());
     tz.setLocalLocation(tz.getLocation(tzName));
   } catch (_) {
     tz.setLocalLocation(tz.getLocation('UTC'));
   }
 
-  await AlarmService.instance.initialize();
+  // These are device integrations rather than prerequisites for rendering
+  // the login screen. A platform-specific failure must not strand users on
+  // Android's native launch screen in a release build.
+  try {
+    await AlarmService.instance.initialize();
+  } catch (_) {
+    // The app can still render without local alarm setup for this launch.
+  }
   Alarm.ringStream.stream.listen(_onNativeAlarmFire);
-  await FcmService.instance.initialize();
-  BatteryService.instance.initialize();
+  try {
+    BatteryService.instance.initialize();
+  } catch (_) {
+    // Battery reporting is best-effort and not part of app startup.
+  }
 
-  runApp(const ProviderScope(child: SyncApp()));
+  // FCM must be initialised after ApiService (we need the current user
+  // id to save the device token on profiles.fcm_token) but before
+  // runApp so the root widget can subscribe to [FcmService.syncEvents].
+  await FcmService.instance.initialize();
 }
 
 void _onNativeAlarmFire(AlarmSettings settings) {
@@ -64,7 +90,9 @@ void _onNativeAlarmFire(AlarmSettings settings) {
 }
 
 class SyncApp extends ConsumerStatefulWidget {
-  const SyncApp({super.key});
+  const SyncApp({super.key, this.startupError});
+
+  final Object? startupError;
 
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
@@ -75,16 +103,31 @@ class SyncApp extends ConsumerStatefulWidget {
 
 class _SyncAppState extends ConsumerState<SyncApp> {
   AppLifecycleListener? _lifecycle;
+  static const _channel = MethodChannel('syncalarm/deeplink');
 
   @override
   void initState() {
     super.initState();
+    if (widget.startupError != null) return;
+
     _lifecycle = AppLifecycleListener(
       onResume: _refresh,
       onPause: _persistBattery,
     );
+
+    // Listen for deep link callbacks (OAuth code exchange)
+    _channel.setMethodCallHandler((call) async {
+      if (call.method == 'handleAuthCallback') {
+        final code = call.arguments as String?;
+        if (code != null && code.isNotEmpty) {
+          await ref.read(authProvider.notifier).handleAuthCode(code);
+        }
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _refresh();
+      await FcmService.instance.replayInitialMessage();
     });
   }
 
@@ -96,10 +139,10 @@ class _SyncAppState extends ConsumerState<SyncApp> {
 
   Future<void> _refresh() async {
     final tzName = ref.read(deviceTimezoneProvider);
-    final userId = SupabaseService.instance.currentUserId;
+    final userId = ApiService.instance.currentUserId;
     if (userId == null) return;
     try {
-      await SupabaseService.instance.updateProfile(
+      await ApiService.instance.updateProfile(
         userId,
         {'timezone': tzName},
       );
@@ -126,13 +169,39 @@ class _SyncAppState extends ConsumerState<SyncApp> {
           theme: AppTheme.dark,
           darkTheme: AppTheme.dark,
           themeMode: ThemeMode.dark,
-          // OAuth deep-links are handled by supabase_flutter's built-in
-          // route handling combined with the AndroidManifest scheme filter.
-          // We intentionally do not register onGenerateRoute / named
-          // routes — all navigation uses Navigator.push(MaterialPageRoute).
-          home: const _AuthGate(),
+          home: widget.startupError == null
+              ? const _AuthGate()
+              : const _StartupFailure(),
         );
       },
+    );
+  }
+}
+
+class _StartupFailure extends StatelessWidget {
+  const _StartupFailure();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.black,
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('SYNC', style: Theme.of(context).textTheme.headlineMedium),
+              const SizedBox(height: 16),
+              const Text(
+                'This build is not configured correctly. Please contact the '
+                'app publisher.',
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

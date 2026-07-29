@@ -1,9 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../models/profile_model.dart';
-import '../services/supabase_service.dart';
+import '../services/api_service.dart';
 
 /// Auth state tracked by Riverpod.
 @immutable
@@ -42,35 +41,33 @@ class AuthState {
   }
 }
 
-/// Riverpod notifier that mirrors Supabase auth state.
+/// Riverpod notifier that mirrors Worker session auth state.
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._service) : super(const AuthState.initial()) {
     _bootstrap();
     _service.authState.listen(_onAuthEvent);
   }
 
-  final SupabaseService _service;
+  final ApiService _service;
 
   void _bootstrap() {
-    final user = _service.currentUser;
-    if (user != null) {
+    if (_service.isAuthenticated) {
       state = state.copyWith(
         isAuthenticated: true,
-        userId: user.id,
+        userId: _service.currentUserId,
       );
-      _loadProfile(user.id);
+      _loadProfile(_service.currentUserId!);
     }
   }
 
-  Future<void> _onAuthEvent(supa.AuthState event) async {
-    final session = event.session;
-    if (session != null) {
+  Future<void> _onAuthEvent(bool authenticated) async {
+    if (authenticated && _service.currentUserId != null) {
       state = state.copyWith(
         isAuthenticated: true,
-        userId: session.user.id,
+        userId: _service.currentUserId,
         clearError: true,
       );
-      await _loadProfile(session.user.id);
+      await _loadProfile(_service.currentUserId!);
     } else {
       state = const AuthState.initial();
     }
@@ -122,6 +119,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (profile != null) state = state.copyWith(profile: profile);
   }
 
+  /// Handle deep link code exchange after OAuth callback.
+  Future<void> handleAuthCode(String code) async {
+    try {
+      await _service.exchangeCode(code);
+    } catch (e) {
+      state = state.copyWith(error: _readableError(e));
+    }
+  }
+
   String _readableError(Object e) {
     final msg = e.toString();
     if (msg.contains('No network connection')) {
@@ -133,5 +139,5 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
 final authProvider =
     StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  return AuthNotifier(SupabaseService.instance);
+  return AuthNotifier(ApiService.instance);
 });

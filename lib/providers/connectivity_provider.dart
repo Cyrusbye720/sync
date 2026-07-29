@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/api_service.dart';
 import '../services/battery_service.dart';
-import '../services/supabase_service.dart';
 import 'alarm_provider.dart';
 import 'auth_provider.dart';
 
@@ -30,10 +30,10 @@ class BatteryNotifier extends StateNotifier<int> {
   }
 
   Future<void> _pushToServer() async {
-    final me = SupabaseService.instance.currentUserId;
+    final me = ApiService.instance.currentUserId;
     if (me == null) return;
     try {
-      await SupabaseService.instance.updateProfile(
+      await ApiService.instance.updateProfile(
         me,
         {'battery_percent': state},
       );
@@ -74,10 +74,10 @@ class SleepStatusNotifier extends StateNotifier<String> {
 
   Future<void> setSleep(String status) async {
     state = status;
-    final me = SupabaseService.instance.currentUserId;
+    final me = ApiService.instance.currentUserId;
     if (me == null) return;
     try {
-      await SupabaseService.instance.updateProfile(
+      await ApiService.instance.updateProfile(
         me,
         {'sleep_status': status},
       );
@@ -136,25 +136,17 @@ class StatsNotifier extends StateNotifier<AlarmStats> {
   }
 
   final Ref _ref;
-  StreamSubscription<dynamic>? _logsSub;
   String? _userId;
-
-  void _subscribeToLogs() {
-    _logsSub?.cancel();
-    _logsSub = _ref.read(alarmLogsProvider.stream).listen((async) {
-      // Only refresh on data transitions; loading/error are no-ops.
-      async.whenData((_) => _refresh());
-    });
-  }
 
   void _bind() {
     _refresh();
     _userId = _ref.read(authProvider).userId;
-    _subscribeToLogs();
+    _ref.listen(alarmLogsProvider, (prev, next) {
+      _refresh();
+    });
     _ref.listen<String?>(authProvider.select((s) => s.userId), (prev, next) {
       if (next != _userId) {
         _userId = next;
-        _subscribeToLogs();
         _refresh();
       }
     });
@@ -163,16 +155,16 @@ class StatsNotifier extends StateNotifier<AlarmStats> {
   Future<void> refresh() => _refresh();
 
   Future<void> _refresh() async {
-    final userId = SupabaseService.instance.currentUserId;
+    final userId = ApiService.instance.currentUserId;
     if (userId == null) return;
     try {
-      final alarms = await SupabaseService.instance.fetchAlarmsFor(userId);
+      final alarms = await ApiService.instance.fetchAlarmsFor(userId);
       if (alarms.isEmpty) {
         state = AlarmStats.empty;
         return;
       }
       final ids = alarms.map((e) => e.id).toList(growable: false);
-      final logs = await SupabaseService.instance.fetchLogsForPair(ids);
+      final logs = await ApiService.instance.fetchLogsForPair(ids);
 
       final cutoff = DateTime.now().subtract(const Duration(days: 7));
       final recent = logs.where((l) => l.createdAt.isAfter(cutoff)).toList();
@@ -197,12 +189,6 @@ class StatsNotifier extends StateNotifier<AlarmStats> {
     } catch (e) {
       if (kDebugMode) debugPrint('[Stats] refresh: $e');
     }
-  }
-
-  @override
-  void dispose() {
-    _logsSub?.cancel();
-    super.dispose();
   }
 }
 

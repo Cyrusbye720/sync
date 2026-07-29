@@ -1,8 +1,16 @@
 plugins {
     id "com.android.application"
-    id "com.google.gms.google-services"
     id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
+}
+
+// Apply the google-services plugin only when google-services.json is
+// present. CI builds without Firebase credentials still succeed, but
+// any contributor that drops a real google-services.json at
+// android/app/google-services.json will get FCM wiring for free.
+def hasGoogleServices = new File(rootDir, 'app/google-services.json').exists()
+if (hasGoogleServices) {
+    apply plugin: 'com.google.gms.google-services'
 }
 
 def localProperties = new Properties()
@@ -25,12 +33,20 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.sync.alarm"
-    compileSdk 34
-    ndkVersion flutter.ndkVersion
+    // flutter_timezone (and other modern plugins) require compileSdk 35+.
+    // Pin explicitly so the build doesn't drift if Flutter bumps the default.
+    compileSdk 36
+    // flutter_local_notifications and friends pin NDK 25.1.8937393.
+    // flutter.ndkVersion is 26.x in Flutter 3.22 which some plugins reject.
+    ndkVersion "28.2.13676358"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+        // flutter_local_notifications uses java.time APIs that require core
+        // library desugaring on minSdk < 26. Enable it here and add the
+        // desugar dep below.
+        coreLibraryDesugaringEnabled true
     }
 
     kotlinOptions {
@@ -81,8 +97,10 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:2.0.21"
     implementation 'androidx.multidex:multidex:2.0.1'
     implementation 'androidx.window:window:1.2.0'
-    implementation 'com.google.firebase:firebase-messaging:24.0.0'
+    // Required by coreLibraryDesugaringEnabled above — provides
+    // java.time / java.util.stream backports on minSdk < 26.
+    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 }

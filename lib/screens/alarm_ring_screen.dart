@@ -9,9 +9,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../models/alarm_log_model.dart';
 import '../models/alarm_model.dart';
-import '../providers/alarm_provider.dart';
+import '../providers/connectivity_provider.dart';
 import '../services/alarm_service.dart';
-import '../services/supabase_service.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 /// Full-screen alarm ring UI.
@@ -79,11 +79,12 @@ class _AlarmRingScreenState extends ConsumerState<AlarmRingScreen> {
 
   Future<void> _doDismiss() async {
     if (_dismissedLog != null) return;
+    final alarmId = widget.initial?.alarmId ?? '';
     try {
-      final res = await SupabaseService.instance.insertAlarmLog(
-        alarmId: widget.initial?.alarmId ?? '',
+      final res = await ApiService.instance.insertAlarmLog(
+        alarmId: alarmId,
         action: AlarmLogModel.dismissed,
-        actedBy: SupabaseService.instance.currentUserId,
+        actedBy: ApiService.instance.currentUserId,
       );
       await AlarmService.instance.stopRinging();
       if (!mounted) return;
@@ -102,18 +103,19 @@ class _AlarmRingScreenState extends ConsumerState<AlarmRingScreen> {
   Future<void> _snooze() async {
     if (_snoozed) return;
     setState(() => _snoozed = true);
+    final alarmId = widget.initial?.alarmId ?? '';
     try {
-      await SupabaseService.instance.insertAlarmLog(
-        alarmId: widget.initial?.alarmId ?? '',
+      await ApiService.instance.insertAlarmLog(
+        alarmId: alarmId,
         action: AlarmLogModel.snoozed,
-        actedBy: SupabaseService.instance.currentUserId,
+        actedBy: ApiService.instance.currentUserId,
       );
       final payload = widget.initial;
       if (payload != null) {
         final model = AlarmModel(
           id: payload.alarmId,
-          ownerId: SupabaseService.instance.currentUserId ?? '',
-          createdBy: SupabaseService.instance.currentUserId ?? '',
+          ownerId: ApiService.instance.currentUserId ?? '',
+          createdBy: ApiService.instance.currentUserId ?? '',
           label: payload.label,
           message: payload.message,
           hour: payload.hour,
@@ -138,7 +140,7 @@ class _AlarmRingScreenState extends ConsumerState<AlarmRingScreen> {
     final log = _dismissedLog;
     if (log == null) return;
     try {
-      await SupabaseService.instance.updateAlarmLogReaction(log.id, emoji);
+      await ApiService.instance.updateAlarmLogReaction(log.id, emoji);
       ref.read(alarmStatsProvider.notifier).refresh();
     } catch (_) {}
     if (mounted) Navigator.of(context).pop();
@@ -164,7 +166,7 @@ class _AlarmRingScreenState extends ConsumerState<AlarmRingScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    widget.initial?.label?.toUpperCase() ?? 'ALARM',
+                    (widget.initial?.label ?? 'ALARM').toUpperCase(),
                     style: TextStyle(
                       color: AppColors.white,
                       fontFamily: 'RobotoMono',
@@ -280,14 +282,14 @@ class AlarmRingPayload {
   });
 
   static AlarmRingPayload? fromAlarmSettings(AlarmSettings settings) {
-    final payload = settings.payload;
-    if (payload == null) return null;
-    final id = AlarmService.instance.decodeAlarmId(payload);
+    final title = settings.notificationSettings.title;
+    if (title.isEmpty) return null;
+    final id = AlarmService.instance.decodeAlarmId(title);
     if (id == null) return null;
-    final label = AlarmService.instance.decodeLabel(payload);
-    final message = AlarmService.instance.decodeMessage(payload);
+    final label = AlarmService.instance.decodeLabel(title);
+    final message = AlarmService.instance.decodeMessage(settings);
     final snooze =
-        AlarmService.instance.decodeSnoozeMinutes(payload);
+        AlarmService.instance.decodeSnoozeMinutes(settings);
     final now = DateTime.now();
     return AlarmRingPayload(
       alarmId: id,

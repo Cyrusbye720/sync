@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive icon foreground: two concentric stroked white circles
+     matching the SYNC logo geometry. Sized for the 108dp adaptive
+     canvas so the visible 72dp safe area stays clean. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer ring -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:fillColor="#00000000"
+        android:pathData="M 54,22
+                          A 32,32 0 1 0 54.001,22 Z" />
+
+    <!-- Inner ring -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:fillColor="#00000000"
+        android:pathData="M 54,36
+                          A 18,18 0 1 0 54.001,36 Z" />
+
+    <!-- Core square (the "pulse") -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 48,48 L 60,48 L 60,60 L 48,60 Z" />
+</vector>

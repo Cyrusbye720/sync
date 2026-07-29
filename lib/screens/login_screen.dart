@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Spacer(flex: 2),
+              const Spacer(flex: 2),
               Text(
                 'SYNC',
                 textAlign: TextAlign.center,
@@ -92,7 +92,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   letterSpacing: 4,
                 ),
               ),
-              Spacer(flex: 3),
+              const Spacer(flex: 3),
               if (error != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Edge-to-edge splash background for API 21+. The system bars are
+     drawn transparent so the black extends behind them; the inner
+     rectangle keeps a black fill in the safe area too. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@android:color/black"
+    android:insetLeft="0dp"
+    android:insetTop="0dp"
+    android:insetRight="0dp"
+    android:insetBottom="0dp" />

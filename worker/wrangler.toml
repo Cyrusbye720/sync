@@ -1,0 +1,20 @@
+name = "sync-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Secrets (set via `wrangler secret put`):
+#   SUPABASE_URL
+#   SUPABASE_ANON_KEY
+#   SUPABASE_SERVICE_ROLE_KEY
+#   FIREBASE_SERVICE_ACCOUNT_JSON
+#   SESSION_ENCRYPTION_KEY
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sync-sessions"
+database_id = "bbd917d5-5f42-48b3-8c87-99be04a2c7d7"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "77a237d3b67f42de8b3476334c45df95"

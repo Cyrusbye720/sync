@@ -25,7 +25,7 @@ class ReactionsScreen extends ConsumerWidget {
           data: (logs) => _buildList(context, logs),
           loading: () => const Center(
               child: CircularProgressIndicator(color: AppColors.white)),
-          error: (e, _) => Center(
+          error: (e, _) => const Center(
             child: Text('Could not load reactions.',
                 style: TextStyle(color: AppColors.white)),
           ),

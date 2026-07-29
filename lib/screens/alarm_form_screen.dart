@@ -180,7 +180,7 @@ class _AlarmFormScreenState extends ConsumerState<AlarmFormScreen> {
                         letterSpacing: 1.4,
                       ),
                     ),
-                    subtitle: Text(
+                    subtitle: const Text(
                       'When the alarm rings.',
                       style: TextStyle(color: AppColors.textSecondary),
                     ),
@@ -200,7 +200,7 @@ class _AlarmFormScreenState extends ConsumerState<AlarmFormScreen> {
                     ),
                     subtitle: Text(
                       '$_snooze min',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: const TextStyle(color: AppColors.textSecondary),
                     ),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,

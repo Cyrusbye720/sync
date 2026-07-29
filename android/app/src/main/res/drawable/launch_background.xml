@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Solid black launch background for API < 21. The drawable-v21
+     variant handles the rounded/inset system bars on newer Android. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="@android:color/black" />
+</shape>

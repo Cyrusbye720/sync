@@ -15,6 +15,9 @@ create table if not exists profiles (
   timezone text default 'UTC',
   sleep_status text check (sleep_status in ('awake', 'asleep')) default 'awake',
   battery_percent int default 100,
+  -- fcm_token was removed when we dropped Firebase; left out of v1
+  -- schema to keep the profile row minimal. Add back if/when push
+  -- is reintroduced via a different provider.
   created_at timestamptz default now()
 );
 
@@ -55,6 +58,18 @@ create index if not exists alarms_owner_id_idx on alarms (owner_id);
 create index if not exists alarms_created_by_idx on alarms (created_by);
 
 -- =========================================================================
+-- Nudges (in-app realtime; replaces the old FCM push completely)
+-- =========================================================================
+create table if not exists nudges (
+  id uuid default uuid_generate_v4() primary key,
+  from_user uuid references profiles(id) on delete cascade not null,
+  to_user   uuid references profiles(id) on delete cascade not null,
+  created_at timestamptz default now(),
+  read_at    timestamptz
+);
+create index if not exists nudges_to_user_created_idx on nudges (to_user, created_at desc);
+
+-- =========================================================================
 -- Alarm Logs
 -- =========================================================================
 create table if not exists alarm_logs (
@@ -76,6 +91,31 @@ alter table profiles    enable row level security;
 alter table pairings    enable row level security;
 alter table alarms      enable row level security;
 alter table alarm_logs  enable row level security;
+alter table nudges      enable row level security;
+-- Nudges: sender and recipient can read; only the sender can insert
+-- (and the target must be the other half of an accepted pairing);
+-- only the recipient can flip read_at.
+drop policy if exists nudges_select on nudges;
+drop policy if exists nudges_insert on nudges;
+drop policy if exists nudges_update on nudges;
+create policy nudges_select on nudges for select using (
+  from_user = auth.uid() or to_user = auth.uid()
+);
+create policy nudges_insert on nudges for insert with check (
+  from_user = auth.uid()
+  and exists (
+    select 1 from pairings p
+    where p.status = 'accepted'
+      and ((p.user_a = auth.uid() and p.user_b = to_user)
+        or (p.user_b = auth.uid() and p.user_a = to_user))
+  )
+);
+create policy nudges_update on nudges for update using (
+  to_user = auth.uid()
+) with check (
+  to_user = auth.uid()
+);
+
 
 -- Profiles: anyone authenticated can read, only owner can write.
 drop policy if exists profiles_select on profiles;
@@ -297,3 +337,4 @@ alter publication supabase_realtime add table public.profiles;
 alter publication supabase_realtime add table public.pairings;
 alter publication supabase_realtime add table public.alarms;
 alter publication supabase_realtime add table public.alarm_logs;
+alter publication supabase_realtime add table public.nudges;

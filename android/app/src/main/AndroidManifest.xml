@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.sync.alarm">
 
-    <!-- Internet for Supabase / FCM. -->
+    <!-- Internet for Supabase. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
@@ -31,7 +31,7 @@
         </intent>
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="io.supabase.syncalarm" />
+            <data android:scheme="syncalarm" />
         </intent>
     </queries>
 
@@ -68,12 +68,12 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="io.supabase.syncalarm" />
+                <data android:scheme="syncalarm" />
             </intent-filter>
 
         </activity>
 
-        <!-- Boot receiver for alarm reschedule. -->
+        <!-- Boot receiver for alarm reschedule. SYNC has no FCM service. -->
         <receiver
             android:name="com.sync.alarm.AlarmBootReceiver"
             android:enabled="true"
@@ -91,14 +91,18 @@
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
 
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
-
-        <!-- FCM default channel — created by firebase_messaging. -->
+        <!-- FCM default notification channel id. Required so that
+             data-only FCM messages surfaced by the system tray
+             (foreground / background / terminated) get the right
+             channel + importance. We use sync_default, created at
+             runtime by alarm_service.dart. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="sync_default" />
+
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
     </application>
 
     <queries>

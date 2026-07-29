@@ -6,18 +6,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/alarm_log_model.dart';
 import '../models/alarm_model.dart';
 import '../services/alarm_service.dart';
-import '../services/supabase_service.dart';
+import '../services/api_service.dart';
 import 'auth_provider.dart';
 
-/// Live list of alarms paired with the current user, refreshed on
-/// realtime updates. Local alarm scheduling happens automatically.
+/// Live list of alarms paired with the current user, refreshed via
+/// periodic polling. Local alarm scheduling happens automatically.
 class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
   AlarmListNotifier(this._service) : super(const <AlarmModel>[]) {
     _bootstrap();
   }
 
-  final SupabaseService _service;
-  StreamSubscription<List<AlarmModel>>? _sub;
+  final ApiService _service;
+  Timer? _pollTimer;
   String? _userId;
 
   Future<void> _bootstrap() async {
@@ -31,16 +31,30 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
     } catch (e) {
       if (kDebugMode) debugPrint('[Alarms] initial fetch: $e');
     }
-    _sub = _service.watchAlarmsFor(userId).listen((rows) {
+    // Poll every 15 seconds for alarm changes
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _poll(),
+    );
+  }
+
+  Future<void> _poll() async {
+    final userId = _service.currentUserId;
+    if (userId == null) return;
+    try {
+      final rows = await _service.fetchAlarmsFor(userId);
       state = rows;
-      _scheduleAllLocal(rows);
-    });
+      await _scheduleAllLocal(rows);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Alarms] poll: $e');
+    }
   }
 
   void rebind(String userId) {
     if (_userId == userId) return;
     _userId = userId;
-    _sub?.cancel();
+    _pollTimer?.cancel();
     state = const <AlarmModel>[];
     _bootstrap();
   }
@@ -86,8 +100,7 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
   }
 
   Future<AlarmModel> update(String id, AlarmModel updated) async {
-    final res =
-        await _service.updateAlarm(id, updated.toUpdateMap());
+    final res = await _service.updateAlarm(id, updated.toUpdateMap());
     if (updated.ownerId == _service.currentUserId) {
       await AlarmService.instance.scheduleAlarm(res);
     }
@@ -125,14 +138,14 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
 
   @override
   void dispose() {
-    _sub?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 }
 
 final alarmListProvider =
     StateNotifierProvider<AlarmListNotifier, List<AlarmModel>>((ref) {
-  final service = SupabaseService.instance;
+  final service = ApiService.instance;
   final notifier = AlarmListNotifier(service);
   // Rebind when the auth user changes.
   ref.listen<String?>(authProvider.select((a) => a.userId), (prev, next) {
@@ -141,18 +154,11 @@ final alarmListProvider =
   return notifier;
 });
 
-/// Recent alarm logs across the pair — used for stats + reactions feed.
+/// Recent alarm logs across the pair — fetched periodically.
 final alarmLogsProvider =
-    StreamProvider.autoDispose<List<AlarmLogModel>>((ref) {
+    FutureProvider.autoDispose<List<AlarmLogModel>>((ref) async {
   final alarms =
       ref.watch(alarmListProvider).map((e) => e.id).toList(growable: false);
-  if (alarms.isEmpty) return const Stream.empty();
-  final service = SupabaseService.instance;
-  return service
-      .client
-      .from('alarm_logs')
-      .stream(primaryKey: ['id'])
-      .inFilter('alarm_id', alarms)
-      .map((rows) =>
-          rows.map(AlarmLogModel.fromMap).toList(growable: false));
+  if (alarms.isEmpty) return const <AlarmLogModel>[];
+  return ApiService.instance.fetchLogsForPair(alarms);
 });

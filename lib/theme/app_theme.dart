@@ -138,7 +138,7 @@ class AppTheme {
         elevation: 0,
         showUnselectedLabels: true,
       ),
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: AppColors.white,
         unselectedLabelColor: AppColors.textDisabled,
         indicatorColor: AppColors.white,

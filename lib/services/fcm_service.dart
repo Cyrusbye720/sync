@@ -4,94 +4,118 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-import 'supabase_service.dart';
+import 'api_service.dart';
 
-/// Firebase Cloud Messaging integration.
+/// Background isolate entry point. Must be a top-level function and
+/// annotated with @pragma so the Dart compiler doesn't tree-shake it.
+/// Runs in a separate isolate; do not call into Riverpod providers
+/// from here — those live in the main isolate.
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
+  if (kDebugMode) {
+    // ignore: avoid_print
+    print('[FCM background] ${message.messageId} ${message.data}');
+  }
+}
+
+/// Single owner of Firebase Cloud Messaging wiring.
 ///
-/// The service stores the device's FCM token on `profiles.fcm_token` so
-/// the partner can push to it via `EdgeFunction nudge`.
+/// Responsibilities:
+///   1. Initialise Firebase + the messaging plugin.
+///   2. Ask for notification permission on Android 13+ / iOS.
+///   3. Get the device FCM token and save it on the server via
+///      the Worker API so the Worker can target it for nudge pushes.
+///   4. Listen for foreground message events and re-emit them on
+///      [syncEvents] so the rest of the app can react (push the
+///      IncomingNudgeScreen if needed).
+///   5. Wire the background isolate handler before init so the OS
+///      doesn't silently drop messages on cold start.
 class FcmService {
   FcmService._();
+
   static final FcmService instance = FcmService._();
 
+  /// Default channel used by the system tray when the OS displays a
+  /// notification that wasn't suppressed by Flutter. Set in the
+  /// manifest as `default_notification_channel_id`; created at
+  /// runtime by `AlarmService._ensureAndroidChannels`.
+  static const String defaultChannelId = 'sync_default';
+
+  final StreamController<Map<String, dynamic>> _events =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Broadcast stream of foreground + tap-launched FCM message
+  /// payloads. Payload is `message.data` (a `Map<String, dynamic>`).
+  Stream<Map<String, dynamic>> get syncEvents => _events.stream;
+
   bool _initialized = false;
-  StreamSubscription<RemoteMessage>? _foregroundSub;
-  StreamSubscription<String>? _tokenRefreshSub;
 
   Future<void> initialize() async {
     if (_initialized) return;
     _initialized = true;
+
     try {
+      // Must be registered before any other FCM call.
+      FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+
+      // Firebase auto-configures from google-services.json (Android)
+      // or GoogleService-Info.plist (iOS) — no explicit options needed.
       await Firebase.initializeApp();
-    } catch (e) {
-      if (kDebugMode) debugPrint('[FcmService] Firebase init failed: $e');
-      return;
-    }
 
-    final messaging = FirebaseMessaging.instance;
-    await messaging.requestPermission(alert: true, badge: true, sound: true);
+      final messaging = FirebaseMessaging.instance;
+      await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-    _tokenRefreshSub = messaging.onTokenRefresh.listen((token) {
-      _persistToken(token);
-    });
+      final token = await messaging.getToken();
+      await _persistToken(token);
 
-    final initial = await messaging.getToken();
-    if (initial != null) {
-      await _persistToken(initial);
-    }
+      // React to OS-issued token rotations (rare but real).
+      FirebaseMessaging.instance.onTokenRefresh.listen(_persistToken);
 
-    _foregroundSub = FirebaseMessaging.onMessage.listen((message) {
+      // Foreground messages.
+      FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+    } catch (e, stack) {
       if (kDebugMode) {
-        debugPrint('[FcmService] Foreground message: ${message.messageId}');
+        // ignore: avoid_print
+        print('[FcmService] FCM initialization failed: $e\n$stack');
       }
-      _handleData(message.data);
-    });
-
-    FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
+    }
   }
 
-  Future<void> _persistToken(String token) async {
-    final userId = SupabaseService.instance.currentUserId;
+  /// If the user launched the app by tapping a system-tray FCM
+  /// notification, expose that payload through [syncEvents] so the
+  /// nudge UI can react. Call once from the root widget's initState.
+  Future<void> replayInitialMessage() async {
+    try {
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) {
+        _events.add(initial.data);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('[FcmService] replayInitialMessage failed: $e');
+      }
+    }
+  }
+
+  Future<void> _persistToken(String? token) async {
+    if (token == null) return;
+    final userId = ApiService.instance.currentUserId;
     if (userId == null) return;
     try {
-      await SupabaseService.instance.updateProfile(
-        userId,
-        {'fcm_token': token},
-      );
-    } catch (e) {
-      if (kDebugMode) debugPrint('[FcmService] Persist token error: $e');
+      await ApiService.instance.updateProfile(userId, {
+        'fcm_token': token,
+      });
+    } catch (_) {
+      // Non-fatal: token persistence is best-effort. The next launch
+      // will retry once auth is restored.
     }
   }
 
-  void _handleData(Map<String, dynamic> data) {
-    final type = data['type'] as String?;
-    if (kDebugMode) debugPrint('[FcmService] data type: $type');
-    if (type == 'alarm_sync' || type == 'nudge') {
-      _syncEvents.add(data);
-    }
+  void _onForegroundMessage(RemoteMessage message) {
+    _events.add(message.data);
   }
-
-  final StreamController<Map<String, dynamic>> _controller =
-      StreamController<Map<String, dynamic>>.broadcast();
-  Stream<Map<String, dynamic>> get syncEvents => _controller.stream;
-
-  void _syncEvents(Map<String, dynamic> data) {
-    if (!_controller.isClosed) _controller.add(data);
-  }
-
-  Future<void> dispose() async {
-    await _foregroundSub?.cancel();
-    await _tokenRefreshSub?.cancel();
-    await _controller.close();
-  }
-}
-
-@pragma('vm:entry-point')
-Future<void> _backgroundHandler(RemoteMessage message) async {
-  // This handler runs in a separate isolate. Make sure Firebase is
-  // initialized here even if the host isolate is cold-starting.
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {}
-  if (kDebugMode) debugPrint('[FcmService] bg: ${message.messageId}');
 }

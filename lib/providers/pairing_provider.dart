@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../models/pairing_model.dart';
 import '../models/profile_model.dart';
-import '../services/supabase_service.dart';
+import '../services/api_service.dart';
 
 /// Active pairing for the current user (or null if unpaired).
 class PairingState {
@@ -50,18 +51,23 @@ class PairingNotifier extends StateNotifier<PairingState> {
     _service.authState.listen((_) => _bootstrap());
   }
 
-  final SupabaseService _service;
-  StreamSubscription<List<dynamic>>? _sub;
+  final ApiService _service;
+  Timer? _pollTimer;
 
   Future<void> _bootstrap() async {
     final me = _service.currentUserId;
     if (me == null) {
       state = const PairingState.initial();
+      _pollTimer?.cancel();
       return;
     }
     await _refresh();
-    _sub?.cancel();
-    _sub = _service.watchMyPairings(me).listen((_) => _refresh());
+    // Poll every 15 seconds for pairing changes
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 15),
+      (_) => _refresh(),
+    );
   }
 
   Future<void> _refresh() async {
@@ -78,9 +84,8 @@ class PairingNotifier extends StateNotifier<PairingState> {
         return;
       }
       ProfileModel? partner;
-      final other = pairing.userB;
-      if (other != null && pairing.isAccepted) {
-        partner = await _service.findProfileById(other);
+      if (pairing.userB != null && pairing.isAccepted) {
+        partner = await _service.fetchPartnerProfile();
       }
       state = state.copyWith(
         pairing: pairing,
@@ -134,14 +139,14 @@ class PairingNotifier extends StateNotifier<PairingState> {
 
   @override
   void dispose() {
-    _sub?.cancel();
+    _pollTimer?.cancel();
     super.dispose();
   }
 }
 
 final pairingProvider =
     StateNotifierProvider<PairingNotifier, PairingState>((ref) {
-  return PairingNotifier(SupabaseService.instance);
+  return PairingNotifier(ApiService.instance);
 });
 
 /// Helper: derive the partner user's id from auth + pairing state. Returns

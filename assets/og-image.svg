@@ -1,27 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-labelledby="ot od">
   <title id="ot">SYNC</title>
-  <desc id="od">Open-graph banner for SYNC. A black field, the SYNC mark left of center, system-metadata lines right of center.</desc>
+  <desc id="od">SYNC Open-graph banner</desc>
   <rect width="1280" height="640" fill="#000000"/>
-  <!-- centered mark at left -->
-  <g transform="translate(160,160)">
-    <g stroke="#FFFFFF" stroke-width="28" fill="none" stroke-linecap="square">
-      <path d="M 0 160 A 160 160 0 0 1 320 160"/>
-      <path d="M 0 160 A 160 160 0 0 0 320 160" transform="translate(40,0)"/>
-    </g>
-    <g fill="#FFFFFF" font-family="'Roboto Mono','SF Mono','Menlo','Consolas',monospace" font-weight="800" font-size="92" letter-spacing="18" text-anchor="middle">
-      <text x="160" y="378">SYNC</text>
-    </g>
-    <rect x="80" y="328" width="160" height="3" fill="#FFFFFF"/>
+  
+  <!-- Left Logo Group -->
+  <g transform="translate(160, 140)">
+    <circle cx="160" cy="160" r="120" fill="none" stroke="#FFFFFF" stroke-width="14"/>
+    <circle cx="160" cy="160" r="72" fill="none" stroke="#FFFFFF" stroke-width="14"/>
+    <rect x="146" y="146" width="28" height="28" fill="#FFFFFF" rx="3"/>
+    <text x="160" y="360" fill="#FFFFFF" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="64" letter-spacing="12" text-anchor="middle">SYNC</text>
+    <rect x="110" y="380" width="100" height="3" fill="#FFFFFF" rx="1.5"/>
   </g>
-  <!-- right side: small system-metadata lines -->
-  <g fill="#FFFFFF" font-family="'Roboto Mono','SF Mono','Menlo','Consolas',monospace" font-size="24" letter-spacing="6">
-    <text x="700" y="200">WAKE / PAIR / GET OUT OF BED</text>
-    <text x="700" y="244" opacity="0.85">REALTIME ACROSS TWO PHONES</text>
-    <text x="700" y="288" opacity="0.85">ONE INVITE CODE. NO ACCOUNTS TO FORGET.</text>
-    <text x="700" y="332" opacity="0.85">OPEN SOURCE. ANDROID + iOS.</text>
-    <text x="700" y="376" opacity="0.6">v1.0 · brutalist-monochrome · v1.0.0</text>
+  
+  <!-- Right Metadata -->
+  <g fill="#FFFFFF" font-family="'Roboto Mono', monospace" font-size="22" letter-spacing="4">
+    <text x="660" y="210">WAKE / PAIR / GET OUT OF BED</text>
+    <text x="660" y="254" opacity="0.85">REALTIME ACROSS TWO PHONES</text>
+    <text x="660" y="298" opacity="0.85">ONE INVITE CODE. NO ACCOUNTS TO FORGET.</text>
+    <text x="660" y="342" opacity="0.85">OPEN SOURCE. ANDROID + iOS.</text>
+    <text x="660" y="386" opacity="0.6">v1.0.0 · brutalist-monochrome</text>
   </g>
-  <!-- bottom rule -->
-  <rect x="160" y="500" width="960" height="1" fill="#FFFFFF"/>
-  <text x="160" y="540" fill="#FFFFFF" font-family="'Roboto Mono','SF Mono','Menlo','Consolas',monospace" font-size="18" letter-spacing="4" opacity="0.6">github.com/Cyrusbye720/sync</text>
+  
+  <rect x="160" y="520" width="960" height="1" fill="#FFFFFF" opacity="0.4"/>
+  <text x="160" y="560" fill="#FFFFFF" font-family="'Roboto Mono', monospace" font-size="18" letter-spacing="4" opacity="0.6">github.com/Cyrusbye720/sync</text>
 </svg>

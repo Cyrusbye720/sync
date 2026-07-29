@@ -8,12 +8,13 @@ import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alarm_model.dart';
 
-/// Wraps the `alarm` + `flutter_local_notifications` packages.
+/// Wraps the `alarm` + `flutter_local_notifications` packages for the
+/// SYNC alarm app.
 ///
-/// - On Android: schedules a true exact alarm with the OS that rings a
-///   full-screen activity when the alarm fires.
-/// - On iOS: schedules a critical local notification at the same time as
-///   a fallback (iOS does not support background alarm ringing).
+/// On Android the `alarm` package schedules a notification at the
+/// configured time and (on v3.1.0) lets the OS launch the app when the
+/// user taps it. On iOS the local notification fires instead — iOS does
+/// not allow true background alarm ringing.
 class AlarmService {
   AlarmService._();
   static final AlarmService instance = AlarmService._();
@@ -24,6 +25,11 @@ class AlarmService {
   static const String reminderChannelName = 'SYNC Reminder';
   static const String defaultChannelId = 'sync_default';
   static const String defaultChannelName = 'SYNC Default';
+
+  /// Placeholder asset. Drop a real `alarm.mp3` at `assets/audio/alarm.mp3`
+  /// and reference it here. The alarm package requires a non-empty
+  /// `assetAudioPath` even when we only want the notification to ring.
+  static const String defaultAudioAsset = 'assets/audio/alarm.mp3';
 
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
@@ -86,10 +92,7 @@ class AlarmService {
     final status = await Permission.scheduleExactAlarm.status;
     if (status.isGranted) return true;
     final result = await Permission.scheduleExactAlarm.request();
-    if (!result.isGranted) return false;
-    // Some OEM builds — request USE_EXACT_ALARM as well.
-    await Permission.requestExactAlarm.request();
-    return true;
+    return result.isGranted;
   }
 
   Future<void> requestNotificationPermission() async {
@@ -116,17 +119,15 @@ class AlarmService {
       final settings = AlarmSettings(
         id: id,
         dateTime: _nextInstanceOf(alarm.hour, alarm.minute, day),
+        assetAudioPath: defaultAudioAsset,
         loopAudio: true,
         vibrate: alarm.vibrate,
-        volumeMax: true,
-        notificationTitle: alarm.label,
-        notificationBody: alarm.message,
-        fullScreen: true,
-        allowWhileIdle: true,
-        androidFullScreenIntent: true,
-        payload: _payload(alarm),
+        notificationSettings: NotificationSettings(
+          title: _encodeTitle(alarm),
+          body: alarm.message,
+        ),
       );
-      await Alarm.set(settings: settings);
+      await Alarm.set(alarmSettings: settings);
     }
   }
 
@@ -172,7 +173,7 @@ class AlarmService {
 
   Future<void> cancelAlarm(String alarmId) async {
     for (var d = DateTime.monday; d <= DateTime.sunday; d += 1) {
-      await Alarm.cancel(_idFor(alarmId, d));
+      await Alarm.stop(_idFor(alarmId, d));
     }
     await _local.cancel(_idFor('reminder-$alarmId', 0));
   }
@@ -184,42 +185,45 @@ class AlarmService {
     final settings = AlarmSettings(
       id: _idFor('snooze-${alarm.id}', now.minute),
       dateTime: snoozeAt,
+      assetAudioPath: defaultAudioAsset,
       loopAudio: true,
       vibrate: alarm.vibrate,
-      volumeMax: true,
-      notificationTitle: alarm.label,
-      notificationBody: alarm.message,
-      fullScreen: true,
-      allowWhileIdle: true,
-      androidFullScreenIntent: true,
-      payload: _payload(alarm),
+      notificationSettings: NotificationSettings(
+        title: _encodeTitle(alarm),
+        body: alarm.message,
+      ),
     );
-    await Alarm.set(settings: settings);
+    await Alarm.set(alarmSettings: settings);
   }
 
   Future<void> stopRinging() => Alarm.stopAll();
 
-  // ---------------- Payload decoders ----------------
+  // ---------------- Decoders ----------------
 
-  String? decodeAlarmId(String payload) {
-    final match = RegExp(r'alarm:([^|]+)').firstMatch(payload);
-    return match?.group(1);
+  /// Decode the alarm id out of a fired `AlarmSettings.notificationTitle`.
+  String? decodeAlarmId(String title) {
+    final parts = title.split('|');
+    return parts.isNotEmpty ? parts.first : null;
   }
 
-  String decodeLabel(String payload) {
-    final match = RegExp(r'label:([^|]+)').firstMatch(payload);
-    return (match?.group(1) ?? 'Alarm').replaceAll('_PIPE_', '|');
+  String decodeLabel(String title) {
+    final parts = title.split('|');
+    return parts.length > 1 ? parts[1] : 'Alarm';
   }
 
-  String decodeMessage(String payload) {
-    final match = RegExp(r'message:([^|]+)').firstMatch(payload);
-    return (match?.group(1) ?? 'Wake up!').replaceAll('_PIPE_', '|');
-  }
+  String decodeMessage(AlarmSettings settings) =>
+      settings.notificationSettings.body;
 
-  int decodeSnoozeMinutes(String payload, {int fallback = 5}) {
-    final match = RegExp(r'snooze:(\d+)').firstMatch(payload);
-    if (match == null) return fallback;
-    return int.tryParse(match.group(1) ?? '') ?? fallback;
+  int decodeSnoozeMinutes(AlarmSettings settings, {int fallback = 5}) {
+    try {
+      final title = settings.notificationSettings.title;
+      final parts = title.split('|');
+      if (parts.length >= 3) {
+        final minutes = int.tryParse(parts[2]!);
+        if (minutes != null && minutes > 0) return minutes;
+      }
+    } catch (_) {}
+    return fallback;
   }
 
   // ---------------- Helpers ----------------
@@ -231,10 +235,11 @@ class AlarmService {
     return hash & 0x7FFFFFFF;
   }
 
-  String _payload(AlarmModel alarm) =>
-      'alarm:${alarm.id}|label:${alarm.label.replaceAll('|', '_PIPE_')}|'
-      'message:${alarm.message.replaceAll('|', '_PIPE_')}|'
-      'snooze:${alarm.snoozeMinutes}|vibrate:${alarm.vibrate}';
+  /// Encode the alarm id + label into the notification title so we can
+  /// recover them when the alarm fires. The alarm package v3.x doesn't
+  /// expose a `payload` field on AlarmSettings.
+  String _encodeTitle(AlarmModel alarm) =>
+      '${alarm.id}|${alarm.label.replaceAll('|', '_PIPE_')}|${alarm.snoozeMinutes}';
 
   DateTime _nextInstanceOf(int hour, int minute, int weekday) {
     final now = DateTime.now();

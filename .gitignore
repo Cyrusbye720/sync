@@ -45,3 +45,12 @@ ios/Runner/GoogleService-Info.plist
 *.dll
 *.so
 *.dylib
+
+# Local tools (yt-dlp binary, etc.)
+.tools/
+
+# Cloudflare Worker
+worker/node_modules/
+worker/dist/
+worker/.dev.vars
+worker/.wrangler/
