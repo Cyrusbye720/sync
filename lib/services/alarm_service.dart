@@ -118,8 +118,9 @@ class AlarmService {
         assetAudioPath: defaultAudioAsset,
         loopAudio: true,
         vibrate: alarm.vibrate,
-        volumeMaxIfMuted: true,
-        enableNotificationOnKill: true,
+        warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
+        volume: 1.0,
         notificationSettings: NotificationSettings(
           title: _encodeTitle(alarm),
           body: alarm.message,
@@ -151,8 +152,9 @@ class AlarmService {
         assetAudioPath: defaultAudioAsset,
         loopAudio: true,
         vibrate: alarm.vibrate,
-        volumeMaxIfMuted: true,
-        enableNotificationOnKill: true,
+        warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
+        volume: 1.0,
         notificationSettings: NotificationSettings(
           title: _encodeTitle(alarm),
           body: alarm.message,
@@ -221,9 +223,13 @@ class AlarmService {
       assetAudioPath: defaultAudioAsset,
       loopAudio: true,
       vibrate: alarm.vibrate,
+      warningNotificationOnKill: true,
+      androidFullScreenIntent: true,
+      volume: 1.0,
       notificationSettings: NotificationSettings(
         title: _encodeTitle(alarm),
         body: alarm.message,
+        stopButton: 'DISMISS',
       ),
     );
     await Alarm.set(alarmSettings: settings);
