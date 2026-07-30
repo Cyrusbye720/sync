@@ -55,9 +55,11 @@ Future<void> _initializeAppServices() async {
   await ApiService.initialize();
 
   tzdata.initializeTimeZones();
+  String detectedTz = 'UTC';
   try {
     final dynamic tzObj = await FlutterTimezone.getLocalTimezone();
     final String tzName = tzObj is String ? tzObj : (tzObj.name ?? tzObj.toString());
+    detectedTz = tzName;
     tz.setLocalLocation(tz.getLocation(tzName));
   } catch (_) {
     tz.setLocalLocation(tz.getLocation('UTC'));
@@ -178,7 +180,9 @@ class _SyncAppState extends ConsumerState<SyncApp> {
   }
 
   Future<void> _refresh() async {
-    final tzName = ref.read(deviceTimezoneProvider);
+    // Use the actual local timezone, not the provider which may be stale.
+    final tzName = tz.local.name;
+    ref.read(deviceTimezoneProvider.notifier).state = tzName;
     final userId = ApiService.instance.currentUserId;
     if (userId == null) return;
     try {
@@ -186,7 +190,6 @@ class _SyncAppState extends ConsumerState<SyncApp> {
         userId,
         {'timezone': tzName},
       );
-      ref.read(deviceTimezoneProvider.notifier).state = tzName;
     } catch (_) {}
     ref.read(batteryProvider.notifier).refresh();
   }
