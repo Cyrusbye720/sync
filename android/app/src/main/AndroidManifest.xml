@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.sync.alarm">
 
     <!-- Internet for Supabase. -->
@@ -82,7 +83,8 @@
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="specialUse"
-            android:exported="false">
+            android:exported="false"
+            tools:replace="android:exported">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="alarm_sync" />
