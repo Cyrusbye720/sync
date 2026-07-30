@@ -87,40 +87,44 @@ create index if not exists alarm_logs_created_at_idx on alarm_logs (created_at d
 alter table profiles    enable row level security;
 alter table pairings    enable row level security;
 alter table alarms      enable row level security;
+-- Foreign key indexes for performance
+create index if not exists idx_alarm_logs_acted_by on public.alarm_logs (acted_by);
+create index if not exists idx_nudges_from_user on public.nudges (from_user);
+create index if not exists idx_pairings_user_a on public.pairings (user_a);
+create index if not exists idx_pairings_user_b on public.pairings (user_b);
+
 alter table alarm_logs  enable row level security;
 alter table nudges      enable row level security;
+
 -- Nudges: sender and recipient can read; only the sender can insert
--- (and the target must be the other half of an accepted pairing);
--- only the recipient can flip read_at.
 drop policy if exists nudges_select on nudges;
 drop policy if exists nudges_insert on nudges;
 drop policy if exists nudges_update on nudges;
 create policy nudges_select on nudges for select using (
-  from_user = auth.uid() or to_user = auth.uid()
+  from_user = (select auth.uid()) or to_user = (select auth.uid())
 );
 create policy nudges_insert on nudges for insert with check (
-  from_user = auth.uid()
+  from_user = (select auth.uid())
   and exists (
     select 1 from pairings p
     where p.status = 'accepted'
-      and ((p.user_a = auth.uid() and p.user_b = to_user)
-        or (p.user_b = auth.uid() and p.user_a = to_user))
+      and ((p.user_a = (select auth.uid()) and p.user_b = to_user)
+        or (p.user_b = (select auth.uid()) and p.user_a = to_user))
   )
 );
 create policy nudges_update on nudges for update using (
-  to_user = auth.uid()
+  to_user = (select auth.uid())
 ) with check (
-  to_user = auth.uid()
+  to_user = (select auth.uid())
 );
-
 
 -- Profiles: anyone authenticated can read, only owner can write.
 drop policy if exists profiles_select on profiles;
 drop policy if exists profiles_insert on profiles;
 drop policy if exists profiles_update on profiles;
 create policy profiles_select on profiles for select using (true);
-create policy profiles_insert on profiles for insert with check (auth.uid() = id);
-create policy profiles_update on profiles for update using (auth.uid() = id);
+create policy profiles_insert on profiles for insert with check ((select auth.uid()) = id);
+create policy profiles_update on profiles for update using ((select auth.uid()) = id);
 
 -- Pairings: any of the two participants can read/insert/update.
 drop policy if exists pairings_select on pairings;
@@ -128,17 +132,16 @@ drop policy if exists pairings_insert on pairings;
 drop policy if exists pairings_update on pairings;
 drop policy if exists pairings_delete on pairings;
 create policy pairings_select on pairings for select using (
-  user_a = auth.uid() or user_b = auth.uid()
+  user_a = (select auth.uid()) or user_b = (select auth.uid())
 );
--- Only the inviter creates a pending invite row.
 create policy pairings_insert on pairings for insert with check (
-  user_a = auth.uid()
+  user_a = (select auth.uid())
 );
 create policy pairings_update on pairings for update using (
-  user_a = auth.uid() or user_b = auth.uid()
+  user_a = (select auth.uid()) or user_b = (select auth.uid())
 );
 create policy pairings_delete on pairings for delete using (
-  user_a = auth.uid() or user_b = auth.uid()
+  user_a = (select auth.uid()) or user_b = (select auth.uid())
 );
 
 -- Alarms: visible to owner and creator.
@@ -147,25 +150,25 @@ drop policy if exists alarms_insert on alarms;
 drop policy if exists alarms_update on alarms;
 drop policy if exists alarms_delete on alarms;
 create policy alarms_select on alarms for select using (
-  owner_id = auth.uid() or created_by = auth.uid()
+  owner_id = (select auth.uid()) or created_by = (select auth.uid())
 );
 create policy alarms_insert on alarms for insert with check (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
   and (
-    owner_id = auth.uid()
+    owner_id = (select auth.uid())
     or exists (
       select 1 from pairings p
-      where ((p.user_a = auth.uid() and p.user_b = owner_id)
-          or (p.user_b = auth.uid() and p.user_a = owner_id))
+      where ((p.user_a = (select auth.uid()) and p.user_b = owner_id)
+          or (p.user_b = (select auth.uid()) and p.user_a = owner_id))
         and p.status = 'accepted'
     )
   )
 );
 create policy alarms_update on alarms for update using (
-  owner_id = auth.uid() or created_by = auth.uid()
+  owner_id = (select auth.uid()) or created_by = (select auth.uid())
 );
 create policy alarms_delete on alarms for delete using (
-  owner_id = auth.uid() or created_by = auth.uid()
+  owner_id = (select auth.uid()) or created_by = (select auth.uid())
 );
 
 -- Alarm logs: visible to the alarm’s owner and creator.
@@ -176,8 +179,11 @@ create policy alarm_logs_select on alarm_logs for select using (
   exists (
     select 1 from alarms
     where alarms.id = alarm_logs.alarm_id
-      and (alarms.owner_id = auth.uid() or alarms.created_by = auth.uid())
+      and (alarms.owner_id = (select auth.uid()) or alarms.created_by = (select auth.uid()))
   )
+);
+create policy alarm_logs_insert on alarm_logs for insert with check (
+  (select auth.uid()) is not null
 );
 create policy alarm_logs_insert on alarm_logs for insert with check (
   exists (
