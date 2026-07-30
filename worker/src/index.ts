@@ -101,13 +101,7 @@ app.route('/v1/admin', adminRoutes);
 // Announcements (supports both admin secret and bearer token, no auth middleware)
 app.route('/v1/announcements', announcementRoutes);
 
-// ─── Authenticated Routes ─────────────────────────────────────────────────────
-
-// Apply auth middleware to all /v1/* routes below
-app.use('/v1/profile*', authenticate);
-app.use('/v1/pairings*', authenticate);
-app.use('/v1/alarms*', authenticate);
-app.use('/v1/nudges*', authenticate);
+// ─── Authenticated Routes (Auth middleware & rate limiting handled per router) ───
 
 // Apply rate limiting (high limits for realtime couple interactions)
 app.use('/v1/nudges*', rateLimit(120, 60));

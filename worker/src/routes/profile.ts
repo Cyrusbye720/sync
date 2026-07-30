@@ -3,13 +3,16 @@
  * All calls use the server-held Supabase user session (RLS enforced).
  */
 
-import { createClient } from '@supabase/supabase-js';
 import { Hono } from 'hono';
+import { createClient } from '@supabase/supabase-js';
 import type { HonoEnv } from '../types.js';
 import { ProfileUpdateSchema } from '../schema.js';
 import { logError } from '../logger.js';
+import { authenticate } from '../middleware.js';
 
 const profile = new Hono<HonoEnv>();
+
+profile.use('*', authenticate);
 
 // GET /v1/profile — fetch own profile
 profile.get('/', async (c) => {

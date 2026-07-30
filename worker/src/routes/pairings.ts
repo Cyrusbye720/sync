@@ -6,8 +6,11 @@
 import { Hono } from 'hono';
 import type { HonoEnv } from '../types.js';
 import { PairingClaimSchema } from '../schema.js';
+import { authenticate } from '../middleware.js';
 
 const pairings = new Hono<HonoEnv>();
+
+pairings.use('*', authenticate);
 
 // GET /v1/pairings — get user's current pairing
 pairings.get('/', async (c) => {

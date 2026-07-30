@@ -12,8 +12,11 @@ import { NudgeCreateSchema } from '../schema.js';
 import { sendFcmNotification } from '../fcm.js';
 import { fanOutNudge } from '../websocket.js';
 import { logError } from '../logger.js';
+import { authenticate } from '../middleware.js';
 
 const nudges = new Hono<HonoEnv>();
+
+nudges.use('*', authenticate);
 
 // POST /v1/nudges — send a nudge to partner
 nudges.post('/', async (c) => {

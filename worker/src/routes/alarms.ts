@@ -12,8 +12,11 @@ import {
   AlarmLogUpdateSchema,
 } from '../schema.js';
 import { logError } from '../logger.js';
+import { authenticate } from '../middleware.js';
 
 const alarms = new Hono<HonoEnv>();
+
+alarms.use('*', authenticate);
 
 // ─── Alarms ───────────────────────────────────────────────────────────────────
 
