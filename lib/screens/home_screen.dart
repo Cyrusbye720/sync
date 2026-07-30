@@ -173,6 +173,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         centerTitle: true,
         actions: [
           IconButton(
+            tooltip: 'Announcements',
+            icon: Badge(
+              isLabelVisible:
+                  (ref.watch(announcementProvider).valueOrNull?.length ?? 0) >
+                      0,
+              label: Text(
+                  '${ref.watch(announcementProvider).valueOrNull?.length ?? 0}'),
+              child: const Icon(Icons.campaign, color: AppColors.white),
+            ),
+            onPressed: () {
+              final items =
+                  ref.read(announcementProvider).valueOrNull ?? const [];
+              _showAnnouncementsSheet(context, items);
+            },
+          ),
+          IconButton(
             tooltip: 'Sign out',
             icon: const Icon(Icons.logout, color: AppColors.white),
             onPressed: () async {
@@ -442,4 +458,138 @@ class _AnnouncementBanner extends StatelessWidget {
       ),
     );
   }
+}
+
+void _showAnnouncementsSheet(
+    BuildContext context, List<AnnouncementModel> items) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: AppColors.black,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            border: Border(
+              top: BorderSide(color: AppColors.white, width: 1),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'ANNOUNCEMENTS',
+                    style: TextStyle(
+                      color: AppColors.white,
+                      fontFamily: 'RobotoMono',
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14.sp,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.white),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const Divider(color: AppColors.border),
+              const SizedBox(height: 8),
+              if (items.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'No announcements right now.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    itemBuilder: (_, index) {
+                      final item = items[index];
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.black,
+                          border:
+                              Border.all(color: AppColors.border, width: 1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    item.type.toUpperCase(),
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontFamily: 'RobotoMono',
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  item.sentAt
+                                      .toLocal()
+                                      .toString()
+                                      .substring(0, 16),
+                                  style: const TextStyle(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              item.title,
+                              style: TextStyle(
+                                color: AppColors.white,
+                                fontFamily: 'RobotoMono',
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13.sp,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              item.body,
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.sp,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
