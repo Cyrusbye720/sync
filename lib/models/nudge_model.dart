@@ -25,9 +25,9 @@ class NudgeModel {
         id: m['id'] as String,
         fromUser: m['from_user'] as String,
         toUser: m['to_user'] as String,
-        createdAt: DateTime.parse(m['created_at'] as String),
+        createdAt: DateTime.parse(m['created_at'] as String).toUtc(),
         readAt: m['read_at'] == null
             ? null
-            : DateTime.parse(m['read_at'] as String),
+            : DateTime.parse(m['read_at'] as String).toUtc(),
       );
 }

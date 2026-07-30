@@ -26,9 +26,11 @@ class IncomingNudgeScreen extends ConsumerStatefulWidget {
     if (_shownIds.contains(nudge.id)) return;
     _shownIds.add(nudge.id);
 
-    // Only surface ringing overlay for recent nudges (within last 90 seconds)
-    final age = DateTime.now().difference(nudge.createdAt);
-    if (age.inSeconds > 90 || age.isNegative) return;
+    // Surface ringing overlay for nudges received within last 10 minutes (UTC comparison)
+    final nowUtc = DateTime.now().toUtc();
+    final createdUtc = nudge.createdAt.toUtc();
+    final diffSec = nowUtc.difference(createdUtc).inSeconds;
+    if (diffSec > 600 || diffSec < -120) return;
 
     if (_isScreenOpen) return;
     _isScreenOpen = true;

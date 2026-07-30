@@ -104,7 +104,13 @@ profile.patch('/', async (c) => {
     return c.json({ error: 'Invalid body', details: parsed.error.issues }, 400);
   }
 
-  const { error } = await supabase
+  const adminClient = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } },
+  );
+
+  const { error } = await adminClient
     .from('profiles')
     .update(parsed.data)
     .eq('id', userId);
