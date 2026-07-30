@@ -101,6 +101,16 @@ class FcmService {
     }
   }
 
+  Future<void> refreshFcmToken() async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final token = await messaging.getToken();
+      await _persistToken(token);
+    } catch (e) {
+      if (kDebugMode) debugPrint('[FcmService] refreshFcmToken error: $e');
+    }
+  }
+
   Future<void> _persistToken(String? token) async {
     if (token == null) return;
     final userId = ApiService.instance.currentUserId;
@@ -109,9 +119,9 @@ class FcmService {
       await ApiService.instance.updateProfile(userId, {
         'fcm_token': token,
       });
-    } catch (_) {
-      // Non-fatal: token persistence is best-effort. The next launch
-      // will retry once auth is restored.
+      if (kDebugMode) debugPrint('[FcmService] FCM token saved for $userId: $token');
+    } catch (e) {
+      if (kDebugMode) debugPrint('[FcmService] FCM token update failed: $e');
     }
   }
 
