@@ -7,12 +7,33 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "syncalarm/deeplink"
-    private var methodChannel: MethodChannel? = null
+    private val DEEPLINK_CHANNEL = "syncalarm/deeplink"
+    private val WIDGET_CHANNEL = "syncalarm/widget"
+    private var deeplinkChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        deeplinkChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DEEPLINK_CHANNEL)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL).setMethodCallHandler { call, result ->
+            if (call.method == "updateWidget") {
+                val partnerName = call.argument<String>("partnerName") ?: "YOUR PARTNER"
+                val status = call.argument<String>("status") ?: "SCREEN ON · ACTIVE"
+                val timeText = call.argument<String>("timeText") ?: "--:--"
+                val battery = call.argument<String>("battery") ?: "--%"
+
+                SyncWidgetProvider.updateAllWidgets(
+                    context,
+                    partnerName,
+                    status,
+                    timeText,
+                    battery
+                )
+                result.success(true)
+            } else {
+                result.notImplemented()
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,7 +52,7 @@ class MainActivity : FlutterActivity() {
         if (data.scheme == "syncalarm" && data.host == "auth-callback") {
             val code = data.getQueryParameter("code")
             if (!code.isNullOrEmpty()) {
-                methodChannel?.invokeMethod("handleAuthCallback", code)
+                deeplinkChannel?.invokeMethod("handleAuthCallback", code)
             }
         }
     }

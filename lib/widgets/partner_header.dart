@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
 import '../models/profile_model.dart';
+import '../services/widget_service.dart';
 import '../theme/app_theme.dart';
 
 /// Live status widget for partner — displays active screen status,
@@ -44,6 +45,16 @@ class PartnerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusText = isAwake ? "SCREEN ON · ACTIVE" : "SCREEN OFF · SLEEPING";
     final tzLabel = _formatOffset();
+    final timeStr = "${_formatLocal()} ($tzLabel)";
+    final battStr = "$batteryPercent%";
+
+    // Sync to native Android Home Screen AppWidget
+    WidgetService.updateWidget(
+      partnerName: partner.username,
+      status: statusText,
+      timeText: timeStr,
+      battery: battStr,
+    );
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

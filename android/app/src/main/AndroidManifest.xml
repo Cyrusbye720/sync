@@ -91,6 +91,18 @@
             android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
             android:exported="false" />
 
+        <!-- Native Android Home Screen AppWidget -->
+        <receiver
+            android:name="com.sync.alarm.SyncWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sync_widget_info" />
+        </receiver>
+
         <!-- FCM default notification channel id. Required so that
              data-only FCM messages surfaced by the system tray
              (foreground / background / terminated) get the right
