@@ -3,8 +3,57 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_service.dart';
+
+/// Show a local notification for a received FCM nudge. Used by the
+/// background handler (which can't rely on the system tray) and the
+/// foreground handler (so the user sees the nudge even with the app open).
+Future<void> _showNudgeNotification(Map<String, dynamic> data) async {
+  try {
+    final title = (data['title'] as String?) ?? 'NUDGE';
+    final body = (data['body'] as String?) ?? 'Your partner is trying to wake you up!';
+    final fromUserName = (data['from_user_name'] as String?) ?? 'YOUR PARTNER';
+
+    final local = FlutterLocalNotificationsPlugin();
+    // No-op if already initialized — safe to call from any isolate.
+    try {
+      await local.initialize(
+        const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+      );
+    } catch (_) {}
+
+    const androidDetails = AndroidNotificationDetails(
+      'sync_default',
+      'SYNC Default',
+      channelDescription: 'Nudge alerts from your partner',
+      importance: Importance.max,
+      priority: Priority.max,
+      playSound: true,
+      enableVibration: true,
+      fullScreenIntent: true,
+      category: AndroidNotificationCategory.alarm,
+      visibility: NotificationVisibility.public,
+      ticker: 'Wake up!',
+    );
+
+    await local.show(
+      1001,
+      title,
+      body,
+      NotificationDetails(android: androidDetails),
+      payload: fromUserName,
+    );
+  } catch (e) {
+    if (kDebugMode) {
+      // ignore: avoid_print
+      print('[FCM] local notification failed: $e');
+    }
+  }
+}
 
 /// Background isolate entry point. Must be a top-level function and
 /// annotated with @pragma so the Dart compiler doesn't tree-shake it.
@@ -19,10 +68,9 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
     // ignore: avoid_print
     print('[FCM background] ${message.messageId} ${message.data}');
   }
-  // The Worker sends notification-style FCM messages, so the system tray
-  // handles display. When the user taps, getInitialMessage() returns
-  // the data payload which now includes nudge_id/from_user/created_at
-  // for IncomingNudgeScreen.show() to parse.
+  // Show a local notification ourselves. The Worker sends data-only
+  // FCM messages so the system tray doesn't auto-display anything.
+  await _showNudgeNotification(message.data);
 }
 
 /// Single owner of Firebase Cloud Messaging wiring.
@@ -135,6 +183,11 @@ class FcmService {
   }
 
   void _onForegroundMessage(RemoteMessage message) {
+    // Show a local notification so the user sees the nudge even
+    // when the app is in the foreground.
+    if (message.data['type'] == 'nudge') {
+      _showNudgeNotification(message.data);
+    }
     _events.add(message.data);
   }
 

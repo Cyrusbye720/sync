@@ -134,15 +134,22 @@ export async function sendFcmNotification(
       body: JSON.stringify({
         message: {
           token: fcmToken,
-          notification: { title, body },
+          // Data-only message: the app shows a local notification itself.
+          // This is more reliable than notification+data on aggressive OEMs
+          // (Xiaomi, Huawei, Samsung) that suppress system tray notifications
+          // for apps they consider "background".
+          data: {
+            type: 'nudge',
+            title,
+            body,
+            ...data,
+          },
           android: {
             priority: 'high',
-            notification: {
-              channel_id: 'sync_default',
-              click_action: 'FLUTTER_NOTIFICATION_CLICK',
-            },
+            // FCM still needs a TTL so the OS retries delivery if the
+            // device is offline. 0 means no retry.
+            ttl: '3600s',
           },
-          data: { type: 'nudge', ...data },
         },
       }),
     });
