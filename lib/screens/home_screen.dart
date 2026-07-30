@@ -4,9 +4,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alarm_model.dart';
+import '../models/announcement_model.dart';
 import '../models/nudge_model.dart';
 import '../models/profile_model.dart';
 import '../providers/alarm_provider.dart';
+import '../providers/announcement_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/connectivity_provider.dart';
 import '../providers/nudge_provider.dart';
@@ -202,9 +204,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       body: Column(
         children: [
+          if (ref.watch(announcementProvider).valueOrNull?.isNotEmpty == true)
+            _AnnouncementBanner(
+              announcement: ref.watch(announcementProvider).value!.first,
+            ),
           // Large NUDGE button row (spec 7.B).
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: MonochromeButton(
               label: 'WAKE THEM',
               icon: Icons.notifications_active,
@@ -383,6 +389,56 @@ class _BottomBar extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AnnouncementBanner extends StatelessWidget {
+  const _AnnouncementBanner({required this.announcement});
+  final AnnouncementModel announcement;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.black,
+        border: Border.all(color: AppColors.white, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.campaign, color: AppColors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  announcement.title.toUpperCase(),
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontFamily: 'RobotoMono',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12.sp,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  announcement.body,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontFamily: 'RobotoMono',
+                    fontSize: 11.sp,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

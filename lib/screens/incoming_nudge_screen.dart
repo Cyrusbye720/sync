@@ -1,18 +1,20 @@
+import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../models/nudge_model.dart';
 import '../providers/pairing_provider.dart';
+import '../services/alarm_service.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/monochrome_button.dart';
 
 /// Full-screen overlay shown when the partner nudges us.
-class IncomingNudgeScreen extends ConsumerWidget {
+/// Plays alarm chime continuously until DISMISS is pressed.
+class IncomingNudgeScreen extends ConsumerStatefulWidget {
   const IncomingNudgeScreen({super.key, required this.nudge});
 
-  /// The nudge row to display. Caller pops the route when dismissed.
   final NudgeModel nudge;
 
   static final Set<String> _shownIds = {};
@@ -37,17 +39,56 @@ class IncomingNudgeScreen extends ConsumerWidget {
       ),
     ).then((_) {
       _isScreenOpen = false;
+      AlarmService.instance.stopRinging();
     });
   }
 
+  @override
+  ConsumerState<IncomingNudgeScreen> createState() => _IncomingNudgeScreenState();
+}
+
+class _IncomingNudgeScreenState extends ConsumerState<IncomingNudgeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _startChime();
+  }
+
+  Future<void> _startChime() async {
+    try {
+      final settings = AlarmSettings(
+        id: 99999,
+        dateTime: DateTime.now().add(const Duration(seconds: 1)),
+        assetAudioPath: 'assets/audio/alarm.mp3',
+        loopAudio: true,
+        vibrate: true,
+        warningNotificationOnKill: true,
+        androidFullScreenIntent: true,
+        volume: 1.0,
+        notificationSettings: const NotificationSettings(
+          title: 'WAKE UP NUDGE!',
+          body: 'Your partner is trying to wake you up!',
+          stopButton: 'DISMISS',
+        ),
+      );
+      await Alarm.set(alarmSettings: settings);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    AlarmService.instance.stopRinging();
+    super.dispose();
+  }
+
   String get _formattedTime {
-    final local = nudge.createdAt.toLocal();
+    final local = widget.nudge.createdAt.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}'
         ':${local.minute.toString().padLeft(2, '0')}';
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final partner = ref.watch(pairingProvider).partner;
     final partnerName = (partner?.username.isNotEmpty == true)
         ? partner!.username.toUpperCase()
@@ -127,9 +168,10 @@ class IncomingNudgeScreen extends ConsumerWidget {
                 label: 'DISMISS',
                 variant: MonoVariant.primary,
                 onPressed: () async {
-                  _isScreenOpen = false;
+                  IncomingNudgeScreen._isScreenOpen = false;
+                  await AlarmService.instance.stopRinging();
                   try {
-                    await ApiService.instance.markNudgeRead(nudge.id);
+                    await ApiService.instance.markNudgeRead(widget.nudge.id);
                   } catch (_) {}
                   if (context.mounted) Navigator.of(context).pop();
                 },

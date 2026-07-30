@@ -4,11 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../theme/app_theme.dart';
 
-/// Custom monochrome time picker used inside the alarm form.
-///
-/// Instead of dropping back to the platform picker we render two
-/// vertical wheels (hour + minute). The wheels are styled in pure
-/// black-and-white and use a deterministic tick generator.
+/// Smooth 12-hour (1..12 + AM/PM) time picker used inside the alarm form.
 class TimePickerField extends StatefulWidget {
   const TimePickerField({
     super.key,
@@ -17,8 +13,8 @@ class TimePickerField extends StatefulWidget {
     required this.onChanged,
   });
 
-  final int hour;
-  final int minute;
+  final int hour; // 0..23
+  final int minute; // 0..59
   final void Function(int hour, int minute) onChanged;
 
   @override
@@ -28,86 +24,110 @@ class TimePickerField extends StatefulWidget {
 class _TimePickerFieldState extends State<TimePickerField> {
   late FixedExtentScrollController _hourCtl;
   late FixedExtentScrollController _minuteCtl;
+  late FixedExtentScrollController _ampmCtl;
+
+  int get _hour12 {
+    final h = widget.hour % 12;
+    return h == 0 ? 12 : h;
+  }
+
+  bool get _isPm => widget.hour >= 12;
 
   @override
   void initState() {
     super.initState();
-    _hourCtl = FixedExtentScrollController(initialItem: widget.hour);
-    _minuteCtl = FixedExtentScrollController(
-      initialItem: widget.minute,
-    );
+    _hourCtl = FixedExtentScrollController(initialItem: _hour12 - 1);
+    _minuteCtl = FixedExtentScrollController(initialItem: widget.minute);
+    _ampmCtl = FixedExtentScrollController(initialItem: _isPm ? 1 : 0);
   }
 
   @override
   void didUpdateWidget(covariant TimePickerField old) {
     super.didUpdateWidget(old);
     if (old.hour != widget.hour) {
-      _hourCtl.jumpToItem(widget.hour);
+      _hourCtl.jumpToItem(_hour12 - 1);
+      _ampmCtl.jumpToItem(_isPm ? 1 : 0);
     }
     if (old.minute != widget.minute) {
       _minuteCtl.jumpToItem(widget.minute);
     }
   }
 
+  void _notify(int h12, int m, bool isPm) {
+    final norm12 = h12 == 12 ? 0 : h12;
+    final h24 = isPm ? (norm12 + 12) : norm12;
+    widget.onChanged(h24, m);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final formatted = DateFormat('HH:mm').format(
+    final formatted = DateFormat('hh:mm a').format(
       DateTime(2024, 1, 1, widget.hour, widget.minute),
     );
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.black,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-          bottom: BorderSide(color: AppColors.border, width: 1),
-          left: BorderSide(color: AppColors.border, width: 1),
-          right: BorderSide(color: AppColors.border, width: 1),
-        ),
+        border: Border.all(color: AppColors.border, width: 1),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: SizedBox(
-              height: 140,
-              child: _Wheel(
-                controller: _hourCtl,
-                max: 24,
-                format: (v) => v.toString().padLeft(2, '0'),
-                label: 'H',
-                onChanged: (v) =>
-                    widget.onChanged(v, widget.minute),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: SizedBox(
-              height: 140,
-              child: _Wheel(
-                controller: _minuteCtl,
-                max: 60,
-                format: (v) => v.toString().padLeft(2, '0'),
-                label: 'M',
-                onChanged: (v) =>
-                    widget.onChanged(widget.hour, v),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Center(
-              child: Text(
-                formatted,
-                style: TextStyle(
-                  color: AppColors.white,
-                  fontFamily: 'RobotoMono',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 38.sp,
-                  letterSpacing: 1.0,
+          Row(
+            children: [
+              // 12-Hour Wheel (1..12)
+              Expanded(
+                child: SizedBox(
+                  height: 120,
+                  child: _Wheel(
+                    controller: _hourCtl,
+                    max: 12,
+                    format: (v) => (v + 1).toString().padLeft(2, '0'),
+                    label: 'H',
+                    onChanged: (idx) => _notify(idx + 1, widget.minute, _isPm),
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
+              // Minute Wheel (0..59)
+              Expanded(
+                child: SizedBox(
+                  height: 120,
+                  child: _Wheel(
+                    controller: _minuteCtl,
+                    max: 60,
+                    format: (v) => v.toString().padLeft(2, '0'),
+                    label: 'M',
+                    onChanged: (m) => _notify(_hour12, m, _isPm),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              // AM / PM Wheel
+              Expanded(
+                child: SizedBox(
+                  height: 120,
+                  child: _Wheel(
+                    controller: _ampmCtl,
+                    max: 2,
+                    format: (v) => v == 0 ? 'AM' : 'PM',
+                    label: '',
+                    onChanged: (idx) => _notify(_hour12, widget.minute, idx == 1),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            formatted.toUpperCase(),
+            style: TextStyle(
+              color: AppColors.white,
+              fontFamily: 'RobotoMono',
+              fontWeight: FontWeight.w800,
+              fontSize: 28.sp,
+              letterSpacing: 2.0,
             ),
           ),
         ],
@@ -135,26 +155,29 @@ class _Wheel extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListWheelScrollView.useDelegate(
       controller: controller,
-      itemExtent: 36,
-      perspective: 0.001,
-      diameterRatio: 1.6,
+      itemExtent: 38,
+      perspective: 0.002,
+      diameterRatio: 1.8,
       physics: const FixedExtentScrollPhysics(),
       onSelectedItemChanged: onChanged,
       childDelegate: ListWheelChildBuilderDelegate(
         builder: (context, index) {
           if (index < 0 || index >= max) return const SizedBox.shrink();
+          final text = label.isEmpty ? format(index) : '${format(index)} $label';
           return Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
+              color: AppColors.black,
               border: Border.all(color: AppColors.border, width: 1),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              '${format(index)} $label',
+              text,
               style: const TextStyle(
                 color: AppColors.white,
                 fontFamily: 'RobotoMono',
                 fontWeight: FontWeight.w700,
-                fontSize: 16,
+                fontSize: 15,
               ),
             ),
           );

@@ -151,11 +151,14 @@ create policy alarms_select on alarms for select using (
 );
 create policy alarms_insert on alarms for insert with check (
   created_by = auth.uid()
-  and exists (
-    select 1 from pairings p
-    where ((p.user_a = auth.uid() and p.user_b = owner_id)
-        or (p.user_b = auth.uid() and p.user_a = owner_id))
-      and p.status = 'accepted'
+  and (
+    owner_id = auth.uid()
+    or exists (
+      select 1 from pairings p
+      where ((p.user_a = auth.uid() and p.user_b = owner_id)
+          or (p.user_b = auth.uid() and p.user_a = owner_id))
+        and p.status = 'accepted'
+    )
   )
 );
 create policy alarms_update on alarms for update using (
