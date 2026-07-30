@@ -38,7 +38,9 @@ class SyncWidgetProvider : AppWidgetProvider() {
             views.setTextViewText(R.id.widget_battery_text, battery)
 
             // Clicking the widget launches the app
-            val intent = Intent(context, MainActivity::class.java)
+            val intent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
             val pendingIntent = PendingIntent.getActivity(
                 context, 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
