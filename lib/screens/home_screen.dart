@@ -121,23 +121,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  /// Push the IncomingNudgeScreen if the stream produced a new
-  /// unread nudge we have not surfaced yet. Invoked from build()
-  /// via `ref.watch(nudgeStreamProvider).whenOrNull(data: ...)`.
   void _maybeShowIncomingNudge(List<NudgeModel> list) {
     for (final n in list) {
       if (n.readAt != null) continue;
-      if (_shownNudgeIds.contains(n.id)) continue;
-      _shownNudgeIds.add(n.id);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => IncomingNudgeScreen(nudge: n),
-          ),
-        );
-      });
-      break;
+      IncomingNudgeScreen.show(context, n);
     }
   }
 
@@ -153,12 +140,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<List<NudgeModel>>>(nudgeStreamProvider, (_, next) {
+      next.whenOrNull(data: _maybeShowIncomingNudge);
+    });
+
     final auth = ref.watch(authProvider);
     final pairing = ref.watch(pairingProvider);
     final alarms = ref.watch(alarmListProvider);
     final stats = ref.watch(alarmStatsProvider);
-    final incoming = ref.watch(nudgeStreamProvider);
-    incoming.whenOrNull(data: _maybeShowIncomingNudge);
 
     final me = auth.userId;
     final partner = pairing.partner;

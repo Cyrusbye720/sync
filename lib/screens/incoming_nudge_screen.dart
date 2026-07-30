@@ -15,6 +15,31 @@ class IncomingNudgeScreen extends ConsumerWidget {
   /// The nudge row to display. Caller pops the route when dismissed.
   final NudgeModel nudge;
 
+  static final Set<String> _shownIds = {};
+  static bool _isScreenOpen = false;
+
+  /// Helper to safely present the IncomingNudgeScreen.
+  /// Prevents double-pushing, duplicate notifications, and old historical nudges.
+  static void show(BuildContext context, NudgeModel nudge) {
+    if (_shownIds.contains(nudge.id)) return;
+    _shownIds.add(nudge.id);
+
+    // Only surface ringing overlay for recent nudges (within last 90 seconds)
+    final age = DateTime.now().difference(nudge.createdAt);
+    if (age.inSeconds > 90 || age.isNegative) return;
+
+    if (_isScreenOpen) return;
+    _isScreenOpen = true;
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => IncomingNudgeScreen(nudge: nudge),
+      ),
+    ).then((_) {
+      _isScreenOpen = false;
+    });
+  }
+
   String get _formattedTime {
     final local = nudge.createdAt.toLocal();
     return '${local.hour.toString().padLeft(2, '0')}'
@@ -102,6 +127,7 @@ class IncomingNudgeScreen extends ConsumerWidget {
                 label: 'DISMISS',
                 variant: MonoVariant.primary,
                 onPressed: () async {
+                  _isScreenOpen = false;
                   try {
                     await ApiService.instance.markNudgeRead(nudge.id);
                   } catch (_) {}

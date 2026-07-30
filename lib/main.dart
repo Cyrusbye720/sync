@@ -139,25 +139,18 @@ class _SyncAppState extends ConsumerState<SyncApp> {
   }
 
   void _handleFcmEvent(Map<String, dynamic> data) {
-    final nav = SyncApp.navigatorKey.currentState;
-    if (nav == null) return;
+    final navContext = SyncApp.navigatorKey.currentContext;
+    if (navContext == null) return;
 
     final type = data['type'] as String?;
     if (type == 'nudge') {
-      // Build a NudgeModel from the FCM data payload and navigate.
       try {
         final nudge = NudgeModel.fromMap(data);
-        nav.push(
-          MaterialPageRoute<void>(
-            builder: (_) => IncomingNudgeScreen(nudge: nudge),
-          ),
-        );
+        IncomingNudgeScreen.show(navContext, nudge);
       } catch (_) {
         // If data doesn't contain full nudge fields, ignore gracefully.
       }
     }
-    // Announcements from FCM are handled by the announcement provider
-    // refreshing on next API call. No navigation needed.
   }
 
   @override

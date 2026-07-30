@@ -31,9 +31,13 @@ class PartnerHeader extends StatelessWidget {
   String _formatOffset() {
     final offset = localTime.timeZoneOffset;
     final hours = offset.inHours;
-    final minutes = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+    final minutes = offset.inMinutes.abs() % 60;
+    if (hours == 5 && minutes == 30) {
+      return 'IST';
+    }
+    final minStr = minutes.toString().padLeft(2, '0');
     final sign = hours >= 0 ? '+' : '-';
-    return 'GMT$sign${hours.abs().toString().padLeft(2, '0')}:$minutes';
+    return 'GMT$sign${hours.abs().toString().padLeft(2, '0')}:$minStr';
   }
 
   @override
@@ -72,7 +76,7 @@ class PartnerHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${isAwake ? "AWAKE" : "ASLEEP"} · ${_formatLocal()} (${_formatOffset()})',
+                  '${isAwake ? "SCREEN ON · AWAKE" : "SCREEN OFF · ASLEEP"} · ${_formatLocal()} (${_formatOffset()})',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontFamily: 'RobotoMono',
@@ -86,7 +90,7 @@ class PartnerHeader extends StatelessWidget {
           if (partner.isLowBattery)
             _BatteryChip(percent: batteryPercent)
           else if (isAwake == false)
-            const _StatusChip(label: 'ZZZ')
+            const _StatusChip(label: 'OFF')
           else
             const _StatusChip(label: 'ON'),
           if (unpair != null) ...[

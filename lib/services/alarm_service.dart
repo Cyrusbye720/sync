@@ -108,9 +108,33 @@ class AlarmService {
   Future<void> scheduleAlarm(AlarmModel alarm) async {
     await cancelAlarm(alarm.id);
     if (!alarm.isActive) return;
-    if (alarm.daysOfWeek.isEmpty) return;
-    await _scheduleWeekly(alarm);
+    if (alarm.daysOfWeek.isEmpty) {
+      final id = _idFor(alarm.id, 0);
+      final settings = AlarmSettings(
+        id: id,
+        dateTime: _nextInstanceOfTime(alarm.hour, alarm.minute),
+        assetAudioPath: defaultAudioAsset,
+        loopAudio: true,
+        vibrate: alarm.vibrate,
+        notificationSettings: NotificationSettings(
+          title: _encodeTitle(alarm),
+          body: alarm.message,
+        ),
+      );
+      await Alarm.set(alarmSettings: settings);
+    } else {
+      await _scheduleWeekly(alarm);
+    }
     await _scheduleBedtimeReminderIfApplicable(alarm);
+  }
+
+  DateTime _nextInstanceOfTime(int hour, int minute) {
+    final now = DateTime.now();
+    final scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    if (scheduled.isBefore(now)) {
+      return scheduled.add(const Duration(days: 1));
+    }
+    return scheduled;
   }
 
   Future<void> _scheduleWeekly(AlarmModel alarm) async {
@@ -172,6 +196,7 @@ class AlarmService {
   }
 
   Future<void> cancelAlarm(String alarmId) async {
+    await Alarm.stop(_idFor(alarmId, 0));
     for (var d = DateTime.monday; d <= DateTime.sunday; d += 1) {
       await Alarm.stop(_idFor(alarmId, d));
     }
