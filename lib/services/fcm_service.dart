@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:alarm/alarm.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_messaging/firebase_messaging.dart' hide NotificationSettings;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
@@ -16,9 +16,7 @@ Future<void> _showNudgeNotification(Map<String, dynamic> data) async {
   try {
     final title = (data['title'] as String?) ?? 'NUDGE';
     final body = (data['body'] as String?) ?? 'Your partner is trying to wake you up!';
-    final fromUserName = (data['from_user_name'] as String?) ?? 'YOUR PARTNER';
-
-    final local = FlutterLocalNotificationsPlugin();
+    final fromUserName = (data['from_user_name'] as String?) ?? 'YOUR PARTNER';      final local = FlutterLocalNotificationsPlugin();
     // No-op if already initialized — safe to call from any isolate.
     try {
       await local.initialize(
@@ -74,14 +72,17 @@ Future<void> _scheduleAlarmFromFcm(Map<String, dynamic> data) async {
     List<int> daysOfWeek = [];
     try {
       final raw = data['days_of_week'];
-      if (raw is String) {
-        daysOfWeek = (List<dynamic>.from(
-            (raw.startsWith('[') ? (const JsonDecoder().convert(raw) as List) : []) as List))
-            .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
-            .where((d) => d > 0)
-            .toList();
+      if (raw is String && raw.startsWith('[')) {
+        final parsed = const JsonDecoder().convert(raw);
+        if (parsed is List) {
+          daysOfWeek = parsed
+              .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+              .where((d) => d > 0)
+              .toList();
+        }
       } else if (raw is List) {
-        daysOfWeek = raw.map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+        daysOfWeek = raw
+            .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
             .where((d) => d > 0)
             .toList();
       }
