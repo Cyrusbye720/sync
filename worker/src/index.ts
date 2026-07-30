@@ -104,16 +104,16 @@ app.route('/v1/announcements', announcementRoutes);
 // ─── Authenticated Routes ─────────────────────────────────────────────────────
 
 // Apply auth middleware to all /v1/* routes below
-app.use('/v1/profile/*', authenticate);
-app.use('/v1/pairings/*', authenticate);
-app.use('/v1/alarms/*', authenticate);
-app.use('/v1/nudges/*', authenticate);
+app.use('/v1/profile*', authenticate);
+app.use('/v1/pairings*', authenticate);
+app.use('/v1/alarms*', authenticate);
+app.use('/v1/nudges*', authenticate);
 
-// Apply rate limiting
-app.use('/v1/nudges/*', rateLimit(10, 60));
-app.use('/v1/pairings/*', rateLimit(20, 60));
-app.use('/v1/alarms/*', rateLimit(30, 60));
-app.use('/v1/profile/*', rateLimit(30, 60));
+// Apply rate limiting (high limits for realtime couple interactions)
+app.use('/v1/nudges*', rateLimit(120, 60));
+app.use('/v1/pairings*', rateLimit(60, 60));
+app.use('/v1/alarms*', rateLimit(100, 60));
+app.use('/v1/profile*', rateLimit(100, 60));
 
 // Mount route groups
 app.route('/v1/profile', profileRoutes);

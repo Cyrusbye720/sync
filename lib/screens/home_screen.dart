@@ -152,11 +152,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ? pairing.pairing!.partnerId(me)
         : null;
 
-    if (partner == null || pairing.isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.black,
-        body: Center(child: CircularProgressIndicator(color: AppColors.white)),
-      );
+    if (partner == null) {
+      if (pairing.isLoading) {
+        return const Scaffold(
+          backgroundColor: AppColors.black,
+          body: Center(
+              child: CircularProgressIndicator(color: AppColors.white)),
+        );
+      }
+      return const PairScreen();
     }
 
     final partnerTime = _partnerTime(partner);
