@@ -85,7 +85,7 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
     required int snoozeMinutes,
   }) async {
     final me = _service.currentUserId!;
-    return _service.insertAlarm(
+    final created = await _service.insertAlarm(
       ownerId: ownerId,
       createdBy: me,
       label: label,
@@ -97,6 +97,8 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
       vibrate: vibrate,
       snoozeMinutes: snoozeMinutes,
     );
+    await _poll();
+    return created;
   }
 
   Future<AlarmModel> update(String id, AlarmModel updated) async {
@@ -104,6 +106,7 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
     if (updated.ownerId == _service.currentUserId) {
       await AlarmService.instance.scheduleAlarm(res);
     }
+    await _poll();
     return res;
   }
 
@@ -116,11 +119,13 @@ class AlarmListNotifier extends StateNotifier<List<AlarmModel>> {
         await AlarmService.instance.cancelAlarm(res.id);
       }
     }
+    await _poll();
   }
 
   Future<void> delete(String id) async {
     await _service.deleteAlarm(id);
     await AlarmService.instance.cancelAlarm(id);
+    await _poll();
   }
 
   Future<AlarmModel?> byId(String id) async {

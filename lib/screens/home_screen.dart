@@ -184,7 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(96),
+          preferredSize: const Size.fromHeight(140),
           child: Column(
             children: [
               PartnerHeader(
