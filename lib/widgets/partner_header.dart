@@ -44,8 +44,6 @@ class PartnerHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final statusText = isAwake ? "SCREEN ON · ACTIVE" : "SCREEN OFF · SLEEPING";
     final tzLabel = _formatOffset();
-    final timeStr = "${_formatLocal()} ($tzLabel)";
-    final battStr = "$batteryPercent%";
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
