@@ -69,10 +69,6 @@ class ApiService {
 
   Future<Map<String, dynamic>> _get(String path) async {
     final res = await _http.get(Uri.parse(_url(path)), headers: _headers);
-    if (res.statusCode == 401) {
-      await _clearSession();
-      throw Exception('Session expired');
-    }
     if (res.statusCode >= 400) {
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
@@ -81,10 +77,6 @@ class ApiService {
 
   Future<List<dynamic>> _getList(String path) async {
     final res = await _http.get(Uri.parse(_url(path)), headers: _headers);
-    if (res.statusCode == 401) {
-      await _clearSession();
-      throw Exception('Session expired');
-    }
     if (res.statusCode >= 400) {
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
@@ -100,10 +92,6 @@ class ApiService {
       headers: _headers,
       body: body != null ? jsonEncode(body) : null,
     );
-    if (res.statusCode == 401) {
-      await _clearSession();
-      throw Exception('Session expired');
-    }
     if (res.statusCode >= 400) {
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
@@ -120,10 +108,6 @@ class ApiService {
       headers: _headers,
       body: jsonEncode(body),
     );
-    if (res.statusCode == 401) {
-      await _clearSession();
-      throw Exception('Session expired');
-    }
     if (res.statusCode >= 400) {
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
@@ -133,11 +117,10 @@ class ApiService {
 
   Future<void> _delete(String path) async {
     final res = await _http.delete(Uri.parse(_url(path)), headers: _headers);
-    if (res.statusCode == 401) {
-      await _clearSession();
-      throw Exception('Session expired');
-    }
     if (res.statusCode >= 400) {
+      throw Exception('API error ${res.statusCode}: ${res.body}');
+    }
+  }
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
   }
