@@ -23,6 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version from pubspec.yaml
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d '[:space:]')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
@@ -78,16 +85,13 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "SYNC v1.0.${{ github.run_number }}"
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: "SYNC v${{ steps.version.outputs.version }} (Build ${{ github.run_number }})"
           body: |
             ## SYNC Release
             
-            - Complete production backend behind Cloudflare Worker API proxy
-            - Zero Supabase/Firebase credentials in mobile client
-            - Secure OAuth deep linking
-            - FCM HTTP v1 push notifications via Worker
-            - Hybrid realtime sync & local alarm scheduling
+            Built from commit ${{ github.sha }}.
+            See repository for full changelog.
           files: build/app/outputs/flutter-apk/sync.apk
           make_latest: true
         env:

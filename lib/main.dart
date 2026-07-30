@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:alarm/alarm.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,11 +10,13 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'api_config.dart';
+import 'models/nudge_model.dart';
 import 'providers/auth_provider.dart';
 import 'providers/connectivity_provider.dart';
 import 'providers/pairing_provider.dart';
 import 'screens/alarm_ring_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/incoming_nudge_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/pair_screen.dart';
 import 'services/alarm_service.dart';
@@ -104,7 +108,7 @@ class SyncApp extends ConsumerStatefulWidget {
 class _SyncAppState extends ConsumerState<SyncApp> {
   AppLifecycleListener? _lifecycle;
   static const _channel = MethodChannel('syncalarm/deeplink');
-
+  StreamSubscription<Map<String, dynamic>>? _fcmSub;
   @override
   void initState() {
     super.initState();
@@ -129,11 +133,37 @@ class _SyncAppState extends ConsumerState<SyncApp> {
       await _refresh();
       await FcmService.instance.replayInitialMessage();
     });
+
+    // Subscribe to FCM foreground messages for nudge/announcement push.
+    _fcmSub = FcmService.instance.syncEvents.listen(_handleFcmEvent);
+  }
+
+  void _handleFcmEvent(Map<String, dynamic> data) {
+    final nav = SyncApp.navigatorKey.currentState;
+    if (nav == null) return;
+
+    final type = data['type'] as String?;
+    if (type == 'nudge') {
+      // Build a NudgeModel from the FCM data payload and navigate.
+      try {
+        final nudge = NudgeModel.fromMap(data);
+        nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => IncomingNudgeScreen(nudge: nudge),
+          ),
+        );
+      } catch (_) {
+        // If data doesn't contain full nudge fields, ignore gracefully.
+      }
+    }
+    // Announcements from FCM are handled by the announcement provider
+    // refreshing on next API call. No navigation needed.
   }
 
   @override
   void dispose() {
     _lifecycle?.dispose();
+    _fcmSub?.cancel();
     super.dispose();
   }
 

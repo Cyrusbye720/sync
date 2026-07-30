@@ -18,11 +18,16 @@ class ApiConfig {
 
   static void validate() {
     final endpoint = Uri.tryParse(baseUrl);
-    if (endpoint == null ||
-        endpoint.scheme != 'https' ||
-        endpoint.host.isEmpty) {
+    if (endpoint == null || endpoint.host.isEmpty) {
       throw StateError(
         'Missing or invalid API_BASE_URL. Configure the release build secrets.',
+      );
+    }
+    // Allow http:// in debug builds (e.g. wrangler dev on localhost)
+    const isDebug = bool.fromEnvironment('dart.vm.product') == false;
+    if (!isDebug && endpoint.scheme != 'https') {
+      throw StateError(
+        'API_BASE_URL must use HTTPS in release builds.',
       );
     }
   }

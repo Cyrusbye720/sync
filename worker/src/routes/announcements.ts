@@ -117,7 +117,7 @@ announcements.post('/', async (c) => {
     // Get all profiles with FCM tokens
     const { data: profiles } = await adminClient
       .from('profiles')
-      .select('fcm_token')
+      .select('id, fcm_token')
       .not('fcm_token', 'is', null);
 
     if (profiles && profiles.length > 0) {
@@ -137,6 +137,8 @@ announcements.post('/', async (c) => {
       for (const p of profiles) {
         if (p.fcm_token) {
           const result = await sendFcmNotification(
+            c.env,
+            p.id,
             sa,
             p.fcm_token,
             title,
@@ -181,7 +183,7 @@ announcements.get('/', async (c) => {
     .all();
 
   if (error) {
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: (error as any).message }, 500);
   }
 
   return c.json(results ?? []);
@@ -201,7 +203,7 @@ announcements.delete('/:id', async (c) => {
     .bind(id)
     .run();
 
-  if (error) return c.json({ error: error.message }, 500);
+  if (error) return c.json({ error: (error as any).message }, 500);
   return c.json({ ok: true });
 });
 

@@ -42,6 +42,21 @@ class _AlarmRingScreenState extends ConsumerState<AlarmRingScreen> {
     super.initState();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     WakelockPlus.enable();
+    _logFired();
+  }
+
+  Future<void> _logFired() async {
+    final alarmId = widget.initial?.alarmId;
+    if (alarmId == null || alarmId.isEmpty) return;
+    try {
+      await ApiService.instance.insertAlarmLog(
+        alarmId: alarmId,
+        action: AlarmLogModel.fired,
+        actedBy: ApiService.instance.currentUserId,
+      );
+    } catch (_) {
+      // Best-effort — don't block the alarm UI.
+    }
   }
 
   @override

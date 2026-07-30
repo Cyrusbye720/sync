@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -190,7 +191,8 @@ class ApiService {
     try {
       final res = await _get('/v1/profile');
       return ProfileModel.fromMap(res);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ApiService] fetchProfile failed: $e');
       return null;
     }
   }
@@ -206,7 +208,8 @@ class ApiService {
     try {
       final res = await _get('/v1/profile/partner');
       return ProfileModel.fromMap(res);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ApiService] fetchPartnerProfile failed: $e');
       return null;
     }
   }
@@ -223,7 +226,8 @@ class ApiService {
       final decoded = jsonDecode(res.body);
       if (decoded == null) return null;
       return PairingModel.fromMap(decoded as Map<String, dynamic>);
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) debugPrint('[ApiService] fetchMyPairing failed: $e');
       return null;
     }
   }
@@ -336,6 +340,13 @@ class ApiService {
     await _post('/v1/nudges', {'to_user_id': toUserId});
   }
 
+  Future<List<NudgeModel>> fetchNudges({int limit = 50}) async {
+    final res = await _getList('/v1/nudges?limit=$limit');
+    return res
+        .map((e) => NudgeModel.fromMap(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
   Future<void> markNudgeRead(String nudgeId) async {
     await _patch('/v1/nudges/$nudgeId/read', {});
   }
@@ -349,24 +360,49 @@ class ApiService {
         .toList(growable: false);
   }
 
-  // ─── WebSocket (Realtime Nudges) ───────────────────────────────────────
+  // ─── WebSocket (Realtime Events) ───────────────────────────────────────
 
   Timer? _wsReconnectTimer;
   bool _wsShouldReconnect = false;
-  StreamController<NudgeModel>? _wsController;
+  StreamController<NudgeModel>? _nudgeController;
+  StreamController<AnnouncementModel>? _announcementController;
+  Stream<NudgeModel>? _nudgeBroadcast;
+  Stream<AnnouncementModel>? _announcementBroadcast;
 
-  /// Connect to the Worker's WebSocket endpoint for realtime nudge delivery.
-  /// Returns a broadcast stream of NudgeModel events.
-  /// Automatically reconnects on disconnect (3s backoff).
-  Stream<NudgeModel> connectNudgeStream() {
+  /// Broadcast stream of realtime nudge events from the shared WebSocket.
+  Stream<NudgeModel> get nudgeStream {
+    _ensureWsConnected();
+    return _nudgeBroadcast!;
+  }
+
+  /// Broadcast stream of realtime announcement events from the shared WebSocket.
+  Stream<AnnouncementModel> get announcementStream {
+    _ensureWsConnected();
+    return _announcementBroadcast!;
+  }
+
+  /// Ensure a single shared WebSocket connection exists.
+  /// Subsequent calls are no-ops if already connected.
+  void _ensureWsConnected() {
+    if (_wsShouldReconnect && _nudgeController != null) return;
     _wsChannel?.sink.close();
     _wsReconnectTimer?.cancel();
-    _wsController?.close();
+    _nudgeController?.close();
+    _announcementController?.close();
     _wsShouldReconnect = true;
-    _wsController = StreamController<NudgeModel>();
-
+    _nudgeController = StreamController<NudgeModel>.broadcast();
+    _announcementController = StreamController<AnnouncementModel>.broadcast();
+    _nudgeBroadcast = _nudgeController!.stream;
+    _announcementBroadcast = _announcementController!.stream;
     _wsConnect();
-    return _wsController!.stream.asBroadcastStream();
+  }
+
+  /// Connect to the Worker's WebSocket endpoint for realtime nudge + announcement delivery.
+  /// Automatically reconnects on disconnect (3s backoff).
+  @Deprecated('Use nudgeStream / announcementStream instead')
+  Stream<NudgeModel> connectNudgeStream() {
+    _ensureWsConnected();
+    return _nudgeBroadcast!;
   }
 
   void _wsConnect() {
@@ -383,12 +419,19 @@ class ApiService {
         if (event is! String) return;
         try {
           final msg = jsonDecode(event) as Map<String, dynamic>;
-          if (msg['type'] == 'nudge') {
+          final type = msg['type'] as String?;
+          if (type == 'nudge') {
             final nudge =
                 NudgeModel.fromMap(msg['data'] as Map<String, dynamic>);
-            _wsController?.add(nudge);
+            _nudgeController?.add(nudge);
+          } else if (type == 'announcement') {
+            final announcement = AnnouncementModel.fromMap(
+                msg['data'] as Map<String, dynamic>);
+            _announcementController?.add(announcement);
           }
-        } catch (_) {}
+        } catch (e) {
+          if (kDebugMode) debugPrint('[ApiService] WS parse error: $e');
+        }
       },
       onError: (_) => _wsScheduleReconnect(),
       onDone: () => _wsScheduleReconnect(),
@@ -407,7 +450,11 @@ class ApiService {
     _wsReconnectTimer?.cancel();
     _wsChannel?.sink.close();
     _wsChannel = null;
-    _wsController?.close();
-    _wsController = null;
+    _nudgeController?.close();
+    _nudgeController = null;
+    _announcementController?.close();
+    _announcementController = null;
+    _nudgeBroadcast = null;
+    _announcementBroadcast = null;
   }
 }

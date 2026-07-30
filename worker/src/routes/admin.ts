@@ -59,7 +59,7 @@ admin.get('/logs', async (c) => {
     .bind(...params)
     .all();
 
-  if (error) return c.json({ error: error.message }, 500);
+  if (error) return c.json({ error: (error as any).message }, 500);
   return c.json(results ?? []);
 });
 
@@ -73,7 +73,7 @@ admin.get('/logs/stats', async (c) => {
      ORDER BY count DESC`,
   ).all();
 
-  if (error) return c.json({ error: error.message }, 500);
+  if (error) return c.json({ error: (error as any).message }, 500);
   return c.json(results ?? []);
 });
 
@@ -83,7 +83,7 @@ admin.delete('/logs/cleanup', async (c) => {
     `DELETE FROM error_logs WHERE created_at < datetime('now', '-30 days')`,
   ).run();
 
-  if (error) return c.json({ error: error.message }, 500);
+  if (error) return c.json({ error: (error as any).message }, 500);
   return c.json({ ok: true });
 });
 

@@ -344,7 +344,7 @@ export async function exchangeCode(
 export async function resolveSession(
   token: string,
   env: Env,
-): Promise<{ userId: string; supabase: ReturnType<typeof createClient> }> {
+): Promise<{ userId: string; supabase: import('@supabase/supabase-js').SupabaseClient }> {
   const tokenHash = await hashToken(token);
   const now = Math.floor(Date.now() / 1000);
 

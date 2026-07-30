@@ -1,12 +1,13 @@
 name = "sync-api"
 main = "src/index.ts"
-compatibility_date = "2024-12-01"
+compatibility_date = "2025-07-14"
 compatibility_flags = ["nodejs_compat"]
 
 # Secrets (set via `wrangler secret put`):
 #   SUPABASE_URL
 #   SUPABASE_ANON_KEY
 #   SUPABASE_SERVICE_ROLE_KEY
+#   ADMIN_SECRET
 #   FIREBASE_SERVICE_ACCOUNT_JSON
 #   SESSION_ENCRYPTION_KEY
 

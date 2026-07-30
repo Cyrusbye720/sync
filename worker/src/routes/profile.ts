@@ -43,7 +43,7 @@ profile.get('/', async (c) => {
         .from('profiles')
         .upsert(
           { id: userId, username, avatar_url: avatarUrl, timezone: 'UTC' },
-          { onConflict: 'id' },
+          { onConflict: 'id', ignoreDuplicates: true },
         )
         .select()
         .single();

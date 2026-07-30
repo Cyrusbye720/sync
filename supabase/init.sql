@@ -15,9 +15,6 @@ create table if not exists profiles (
   timezone text default 'UTC',
   sleep_status text check (sleep_status in ('awake', 'asleep')) default 'awake',
   battery_percent int default 100,
-  -- fcm_token was removed when we dropped Firebase; left out of v1
-  -- schema to keep the profile row minimal. Add back if/when push
-  -- is reintroduced via a different provider.
   created_at timestamptz default now()
 );
 

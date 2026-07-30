@@ -50,7 +50,7 @@ nudges.post('/', async (c) => {
   fanOutNudge(toUserId, nudge);
 
   // 3. Look up target's FCM token (service-role, narrowly scoped read)
-  let fcmResult = { success: false, error: 'no token' };
+  let fcmResult: { success: boolean; error?: string } = { success: false, error: 'no token' };
   try {
     const adminClient = createClient(
       c.env.SUPABASE_URL,
@@ -85,6 +85,8 @@ nudges.post('/', async (c) => {
 
       const senderName = senderProfile?.username ?? 'Your partner';
       fcmResult = await sendFcmNotification(
+        c.env,
+        toUserId,
         sa,
         fcmToken,
         'NUDGE',

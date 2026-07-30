@@ -8,7 +8,8 @@
  * Uses only the Web Crypto API — no external auth libraries.
  */
 
-import type { ServiceAccount } from './types.js';
+import type { Env, ServiceAccount } from './types.js';
+import { createClient } from '@supabase/supabase-js';
 
 // ─── Base64-URL Encoding ──────────────────────────────────────────────────────
 
@@ -112,6 +113,8 @@ export async function getAccessToken(sa: ServiceAccount): Promise<string> {
  * Non-fatal errors are thrown — callers decide whether to surface them.
  */
 export async function sendFcmNotification(
+  env: Env,
+  targetUserId: string,
   sa: ServiceAccount,
   fcmToken: string,
   title: string,
@@ -145,6 +148,19 @@ export async function sendFcmNotification(
 
     if (!res.ok) {
       const text = await res.text();
+      if (res.status === 404 || text.includes('UNREGISTERED') || text.includes('NOT_FOUND')) {
+        try {
+          const adminClient = createClient(
+            env.SUPABASE_URL,
+            env.SUPABASE_SERVICE_ROLE_KEY,
+            { auth: { persistSession: false } },
+          );
+          await adminClient
+            .from('profiles')
+            .update({ fcm_token: null })
+            .eq('id', targetUserId);
+        } catch (e) {}
+      }
       return { success: false, error: `FCM ${res.status}: ${text}` };
     }
 
