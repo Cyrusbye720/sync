@@ -519,7 +519,13 @@ void _showAnnouncementsSheet(
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (_, index) {
                       final item = items[index];
-                      final dateStr = (item.sentAt?.toLocal() ?? DateTime.now())
+                      DateTime? parsed;
+                      if (item.sentAt != null) {
+                        try {
+                          parsed = DateTime.parse(item.sentAt!).toLocal();
+                        } catch (_) {}
+                      }
+                      final dateStr = (parsed ?? DateTime.now())
                           .toString()
                           .substring(0, 16);
                       return Container(
