@@ -22,39 +22,66 @@ profile.get('/', async (c) => {
     .eq('id', userId)
     .single();
 
-  if (error || !data) {
-    // Profile may not exist if the signup trigger failed.
-    // Try to create it using the admin client (bypasses RLS).
-    try {
-      const adminClient = createClient(
-        c.env.SUPABASE_URL,
-        c.env.SUPABASE_SERVICE_ROLE_KEY,
-        { auth: { persistSession: false } },
-      );
-      const { data: newUser } = await adminClient.auth.admin.getUserById(userId);
-      const username =
-        newUser?.user?.user_metadata?.['user_name'] ??
-        newUser?.user?.user_metadata?.['preferred_username'] ??
-        newUser?.user?.user_metadata?.['full_name'] ??
-        `user_${userId.substring(0, 6)}`;
-      const avatarUrl = newUser?.user?.user_metadata?.['avatar_url'] ?? null;
+  const adminClient = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } },
+  );
 
-      const { data: created } = await adminClient
-        .from('profiles')
-        .upsert(
-          { id: userId, username, avatar_url: avatarUrl, timezone: 'UTC' },
-          { onConflict: 'id', ignoreDuplicates: true },
-        )
-        .select()
-        .single();
+  if (data) {
+    if (!data.username || data.username.startsWith('user_')) {
+      try {
+        const { data: userRecord } = await adminClient.auth.admin.getUserById(userId);
+        const meta = userRecord?.user?.user_metadata || {};
+        const realName =
+          meta['custom_claims']?.['global_name'] ??
+          meta['full_name'] ??
+          meta['name'] ??
+          meta['user_name'] ??
+          meta['preferred_username'];
+        const avatarUrl = meta['avatar_url'] ?? data.avatar_url;
 
-      if (created) return c.json(created);
-    } catch (e) {
-      await logError(c.env, 'GET /v1/profile', 'Profile auto-create failed', e instanceof Error ? e.message : e, userId);
+        if (realName && realName !== data.username) {
+          const { data: updated } = await adminClient
+            .from('profiles')
+            .update({ username: realName, avatar_url: avatarUrl })
+            .eq('id', userId)
+            .select()
+            .single();
+          if (updated) return c.json(updated);
+        }
+      } catch (_) {}
     }
-    return c.json({ error: 'Profile not found' }, 404);
+    return c.json(data);
   }
-  return c.json(data);
+
+  // Profile may not exist if the signup trigger failed.
+  try {
+    const { data: newUser } = await adminClient.auth.admin.getUserById(userId);
+    const meta = newUser?.user?.user_metadata || {};
+    const username =
+      meta['custom_claims']?.['global_name'] ??
+      meta['full_name'] ??
+      meta['name'] ??
+      meta['user_name'] ??
+      meta['preferred_username'] ??
+      `user_${userId.substring(0, 6)}`;
+    const avatarUrl = meta['avatar_url'] ?? null;
+
+    const { data: created } = await adminClient
+      .from('profiles')
+      .upsert(
+        { id: userId, username, avatar_url: avatarUrl, timezone: 'UTC' },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
+      .select()
+      .single();
+
+    if (created) return c.json(created);
+  } catch (e) {
+    await logError(c.env, 'GET /v1/profile', 'Profile auto-create failed', e instanceof Error ? e.message : e, userId);
+  }
+  return c.json({ error: 'Profile not found' }, 404);
 });
 
 // PATCH /v1/profile — update own profile

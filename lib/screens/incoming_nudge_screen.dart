@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../models/nudge_model.dart';
+import '../providers/pairing_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/monochrome_button.dart';
 
-/// Full-screen overlay shown when the partner nudges us via
-/// Supabase Realtime. Plays the standard alarm chime, holds the
-/// screen on, and waits for a single DISMISS tap.
+/// Full-screen overlay shown when the partner nudges us.
 class IncomingNudgeScreen extends ConsumerWidget {
   const IncomingNudgeScreen({super.key, required this.nudge});
 
@@ -24,6 +23,11 @@ class IncomingNudgeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final partner = ref.watch(pairingProvider).partner;
+    final partnerName = (partner?.username.isNotEmpty == true)
+        ? partner!.username.toUpperCase()
+        : 'YOUR PARTNER';
+
     return Scaffold(
       backgroundColor: AppColors.black,
       body: SafeArea(
@@ -70,7 +74,7 @@ class IncomingNudgeScreen extends ConsumerWidget {
                   ),
                 ),
                 child: Text(
-                  'YOUR PARTNER IS TRYING TO WAKE YOU UP.',
+                  '$partnerName IS TRYING TO WAKE YOU UP.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: AppColors.white,
@@ -84,7 +88,7 @@ class IncomingNudgeScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                'This only fires while both apps are open. Background push is not part of v1.',
+                'TAP DISMISS TO SILENCE THIS NUDGE.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: AppColors.textSecondary,
