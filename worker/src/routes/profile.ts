@@ -74,7 +74,7 @@ profile.get('/', async (c) => {
     const { data: created } = await adminClient
       .from('profiles')
       .upsert(
-        { id: userId, username, avatar_url: avatarUrl, timezone: 'UTC' },
+        { id: userId, username, avatar_url: avatarUrl, timezone: 'Asia/Kolkata' },
         { onConflict: 'id', ignoreDuplicates: true },
       )
       .select()

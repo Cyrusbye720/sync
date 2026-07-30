@@ -19,7 +19,10 @@ class BatteryNotifier extends StateNotifier<int> {
   void _bind() {
     BatteryService.instance.initialize().then((_) async {
       state = BatteryService.instance.currentLevel;
-      _sub = BatteryService.instance.levelStream.listen((v) => state = v);
+      _sub = BatteryService.instance.levelStream.listen((v) {
+      state = v;
+      _pushToServer();
+    });
       _pushToServer();
     });
   }

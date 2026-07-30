@@ -141,12 +141,18 @@ class _SyncAppState extends ConsumerState<SyncApp> {
 
     // Push battery + timezone immediately after login (not just on resume).
     _authSub = ApiService.instance.authState.listen((authed) {
-      if (authed) _refresh();
+      if (authed) {
+        _refresh();
+        _startPeriodicSync();
+      }
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _refresh();
       await FcmService.instance.replayInitialMessage();
+      // Start periodic sync if already authenticated (authState won't fire
+      // on app restart with existing session — only on fresh login).
+      if (ApiService.instance.isAuthenticated) _startPeriodicSync();
     });
 
     // Subscribe to FCM foreground messages for nudge/announcement push.
@@ -158,7 +164,17 @@ class _SyncAppState extends ConsumerState<SyncApp> {
     if (navContext == null) return;
 
     final type = data['type'] as String?;
-    if (type == 'nudge') {
+    if (type == 'alarm') {
+      // Handle alarm FCM events (from app-open/killed replay).
+      // The foreground handler in FcmService already scheduled/cancelled the
+      // alarm, but if the app was killed and replayed, we do it here too.
+      final action = data['action'] as String?;
+      if (action == 'delete') {
+        FcmService.cancelAlarmFromFcm(data);
+      } else {
+        FcmService.scheduleAlarmFromFcm(data);
+      }
+    } else if (type == 'nudge') {
       try {
         // Try full parse first (WebSocket path sends complete nudge data).
         final nudge = NudgeModel.fromMap(data);
@@ -176,12 +192,42 @@ class _SyncAppState extends ConsumerState<SyncApp> {
     }
   }
 
+  Timer? _periodicSync;
+  int _lastBatterySync = -1;
+
   @override
   void dispose() {
+    _periodicSync?.cancel();
     _lifecycle?.dispose();
     _fcmSub?.cancel();
     _authSub?.cancel();
     super.dispose();
+  }
+
+  /// Start periodic sync of battery + timezone to server so partner sees live data.
+  void _startPeriodicSync() {
+    _periodicSync?.cancel();
+    _periodicSync = Timer.periodic(const Duration(seconds: 60), (_) {
+      _syncDeviceData();
+    });
+    // Sync immediately on start.
+    _syncDeviceData();
+  }
+
+  /// Push current battery + timezone to the server (debounced, only on change).
+  Future<void> _syncDeviceData() async {
+    final userId = ApiService.instance.currentUserId;
+    if (userId == null) return;
+    try {
+      final batteryLevel = ref.read(batteryProvider);
+      final tzName = tz.local.name;
+      final patch = <String, dynamic>{'timezone': tzName};
+      if (batteryLevel >= 0 && batteryLevel != _lastBatterySync) {
+        patch['battery_percent'] = batteryLevel;
+        _lastBatterySync = batteryLevel;
+      }
+      await ApiService.instance.updateProfile(userId, patch);
+    } catch (_) {}
   }
 
   Future<void> _refresh() async {

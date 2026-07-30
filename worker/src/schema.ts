@@ -32,6 +32,7 @@ export const PairingClaimSchema = z
 export const AlarmCreateSchema = z
   .object({
     owner_id: uuid,
+    created_by: uuid.optional(),
     label: z.string().min(1).max(128).default('Alarm'),
     message: z.string().max(256).default('Wake up!'),
     hour: z.number().int().min(0).max(23),

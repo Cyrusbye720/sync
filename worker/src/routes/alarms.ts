@@ -4,13 +4,15 @@
  */
 
 import { Hono } from 'hono';
-import type { HonoEnv } from '../types.js';
+import { createClient } from '@supabase/supabase-js';
+import type { HonoEnv, ServiceAccount } from '../types.js';
 import {
   AlarmCreateSchema,
   AlarmUpdateSchema,
   AlarmLogCreateSchema,
   AlarmLogUpdateSchema,
 } from '../schema.js';
+import { sendFcmNotification } from '../fcm.js';
 import { logError } from '../logger.js';
 import { authenticate } from '../middleware.js';
 
@@ -64,6 +66,47 @@ alarms.post('/', async (c) => {
     await logError(c.env, 'POST /v1/alarms', error.message, { userId, owner_id: parsed.data.owner_id }, userId, c.req.header('cf-connecting-ip') ?? undefined);
     return c.json({ error: error.message }, 500);
   }
+
+  // Send FCM to partner so their device schedules the alarm locally
+  try {
+    const partnerId = data.owner_id === userId ? data.created_by : data.owner_id;
+    if (partnerId && partnerId !== userId) {
+      const adminClient = createClient(
+        c.env.SUPABASE_URL,
+        c.env.SUPABASE_SERVICE_ROLE_KEY,
+        { auth: { persistSession: false } },
+      );
+      const { data: partnerProfile } = await adminClient
+        .from('profiles')
+        .select('fcm_token')
+        .eq('id', partnerId)
+        .single();
+      if (partnerProfile?.fcm_token) {
+        let sa: ServiceAccount;
+        try {
+          sa = JSON.parse(c.env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
+        } catch { return c.json(data, 201); }
+        await sendFcmNotification(
+          c.env, partnerId, sa, partnerProfile.fcm_token,
+          'New Alarm', `${data.label} at ${String(data.hour).padStart(2,'0')}:${String(data.minute).padStart(2,'0')}`,
+          {
+            type: 'alarm',
+            action: 'create',
+            alarm_id: data.id,
+            label: data.label,
+            message: data.message ?? 'Wake up!',
+            hour: String(data.hour),
+            minute: String(data.minute),
+            days_of_week: JSON.stringify(data.days_of_week ?? []),
+            is_active: String(data.is_active ?? true),
+            vibrate: String(data.vibrate ?? true),
+            snooze_minutes: String(data.snooze_minutes ?? 5),
+          },
+        );
+      }
+    }
+  } catch (_) { /* best-effort */ }
+
   return c.json(data, 201);
 });
 
@@ -93,6 +136,48 @@ alarms.patch('/:id', async (c) => {
     .single();
 
   if (error) return c.json({ error: error.message }, 500);
+
+  // Notify partner about alarm change so they can reschedule/cancel locally
+  try {
+    const userId = c.get('userId');
+    const partnerId = data.owner_id === userId ? data.created_by : data.owner_id;
+    if (partnerId && partnerId !== userId) {
+      const adminClient = createClient(
+        c.env.SUPABASE_URL,
+        c.env.SUPABASE_SERVICE_ROLE_KEY,
+        { auth: { persistSession: false } },
+      );
+      const { data: partnerProfile } = await adminClient
+        .from('profiles')
+        .select('fcm_token')
+        .eq('id', partnerId)
+        .single();
+      if (partnerProfile?.fcm_token) {
+        let sa: ServiceAccount;
+        try {
+          sa = JSON.parse(c.env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
+        } catch { return c.json(data); }
+        await sendFcmNotification(
+          c.env, partnerId, sa, partnerProfile.fcm_token,
+          'Alarm Updated', `${data.label} at ${String(data.hour).padStart(2,'0')}:${String(data.minute).padStart(2,'0')}`,
+          {
+            type: 'alarm',
+            action: 'update',
+            alarm_id: data.id,
+            label: data.label,
+            message: data.message ?? 'Wake up!',
+            hour: String(data.hour),
+            minute: String(data.minute),
+            days_of_week: JSON.stringify(data.days_of_week ?? []),
+            is_active: String(data.is_active ?? true),
+            vibrate: String(data.vibrate ?? true),
+            snooze_minutes: String(data.snooze_minutes ?? 5),
+          },
+        );
+      }
+    }
+  } catch (_) { /* best-effort */ }
+
   return c.json(data);
 });
 
@@ -101,10 +186,53 @@ alarms.delete('/:id', async (c) => {
   const supabase = c.get('supabase');
   const alarmId = c.req.param('id');
 
+  // Fetch alarm details before deleting (need partner info for FCM)
+  const { data: alarm } = await supabase
+    .from('alarms')
+    .select('*')
+    .eq('id', alarmId)
+    .single();
+
   // RLS delete policy ensures only owner/creator can delete
   const { error } = await supabase.from('alarms').delete().eq('id', alarmId);
 
   if (error) return c.json({ error: error.message }, 500);
+
+  // Notify partner to cancel the local alarm
+  if (alarm) {
+    try {
+      const userId = c.get('userId');
+      const partnerId = alarm.owner_id === userId ? alarm.created_by : alarm.owner_id;
+      if (partnerId && partnerId !== userId) {
+        const adminClient = createClient(
+          c.env.SUPABASE_URL,
+          c.env.SUPABASE_SERVICE_ROLE_KEY,
+          { auth: { persistSession: false } },
+        );
+        const { data: partnerProfile } = await adminClient
+          .from('profiles')
+          .select('fcm_token')
+          .eq('id', partnerId)
+          .single();
+        if (partnerProfile?.fcm_token) {
+          let sa: ServiceAccount;
+          try {
+            sa = JSON.parse(c.env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
+          } catch { return c.json({ ok: true }); }
+          await sendFcmNotification(
+            c.env, partnerId, sa, partnerProfile.fcm_token,
+            'Alarm Deleted', alarm.label,
+            {
+              type: 'alarm',
+              action: 'delete',
+              alarm_id: alarm.id,
+            },
+          );
+        }
+      }
+    } catch (_) { /* best-effort */ }
+  }
+
   return c.json({ ok: true });
 });
 

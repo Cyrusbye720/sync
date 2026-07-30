@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -38,6 +40,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
 
+  Timer? _widgetTimer;
+
   @override
   void initState() {
     super.initState();
@@ -45,12 +49,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(alarmStatsProvider.notifier).refresh();
     });
+
+    // Immediately update widget when partner data changes.
+    ref.listen<PairingState>(pairingProvider, (prev, next) {
+      _pushWidgetUpdate(next);
+    });
+
+    // Also refresh widget every 60 s so the time display stays current.
+    _widgetTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      _pushWidgetUpdate(ref.read(pairingProvider));
+    });
   }
 
   @override
   void dispose() {
+    _widgetTimer?.cancel();
     _tabs.dispose();
     super.dispose();
+  }
+
+  /// Push latest partner data to the native Android home-screen widget.
+  void _pushWidgetUpdate(PairingState state) {
+    final partner = state.partner;
+    if (partner == null) return;
+    final partnerTime = _partnerTime(partner);
+    final fmt = DateFormat('hh:mm a');
+    final timeStr = '${fmt.format(partnerTime)} (${_formatOffset(partnerTime)})';
+    final statusText = partner.isAwake ? "SCREEN ON · ACTIVE" : "SCREEN OFF · SLEEPING";
+    WidgetService.updateWidget(
+      partnerName: partner.username,
+      status: statusText,
+      timeText: timeStr,
+      battery: '${partner.batteryPercent}%',
+    );
   }
 
   Future<void> _nudge() async {
@@ -128,10 +159,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   /// Compute the current time as observed in the partner's timezone.
+  /// Falls back to the local device timezone if the partner's stored
+  /// timezone is missing or the default 'UTC'. If the device timezone
+  /// also failed to init, falls back to IST as a last resort.
   DateTime _partnerTime(ProfileModel partner) {
     try {
-      final loc = tz.getLocation(partner.timezone);
-      return tz.TZDateTime.now(loc);
+      final stored = partner.timezone;
+      if (stored.isNotEmpty && stored != 'UTC') {
+        return tz.TZDateTime.now(tz.getLocation(stored));
+      }
+      // Partner timezone is missing/UTC — use device timezone.
+      final localTz = tz.local.name;
+      if (localTz != 'UTC') {
+        return tz.TZDateTime.now(tz.getLocation(localTz));
+      }
+      // Both are UTC (rare: device tz init failed) — last resort.
+      return tz.TZDateTime.now(tz.getLocation('Asia/Kolkata'));
     } catch (_) {
       return DateTime.now();
     }
@@ -189,19 +232,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
 
     final partnerTime = _partnerTime(effectivePartner);
-
-    // Sync partner data to native Android widget (via post-frame to avoid build side effects).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final fmt = DateFormat('hh:mm a');
-      final timeStr = '${fmt.format(partnerTime)} (${_formatOffset(partnerTime)})';
-      final statusText = effectivePartner.isAwake ? "SCREEN ON · ACTIVE" : "SCREEN OFF · SLEEPING";
-      WidgetService.updateWidget(
-        partnerName: effectivePartner.username,
-        status: statusText,
-        timeText: timeStr,
-        battery: '${effectivePartner.batteryPercent}%',
-      );
-    });
 
     final myAlarms =
         alarms.where((a) => a.ownerId == me).toList(growable: false);
