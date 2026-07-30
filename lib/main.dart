@@ -252,7 +252,7 @@ class _Routing extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pairing = ref.watch(pairingProvider);
 
-    if (pairing.isLoading && pairing.pairing == null) {
+    if (pairing.isLoading) {
       return const Scaffold(
         backgroundColor: AppColors.black,
         body: Center(

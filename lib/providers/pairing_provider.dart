@@ -24,7 +24,7 @@ class PairingState {
   const PairingState.initial()
       : pairing = null,
         partner = null,
-        isLoading = false,
+        isLoading = true,
         error = null;
 
   PairingState copyWith({
