@@ -133,17 +133,58 @@ profile.get('/partner', async (c) => {
     return c.json({ error: 'Partner not yet joined' }, 404);
   }
 
-  const { data: partner, error } = await supabase
+  // Use adminClient to guarantee partner profile lookup & auto-creation if missing
+  const adminClient = createClient(
+    c.env.SUPABASE_URL,
+    c.env.SUPABASE_SERVICE_ROLE_KEY,
+    { auth: { persistSession: false } },
+  );
+
+  const { data: partner } = await adminClient
     .from('profiles')
     .select('*')
     .eq('id', partnerId)
-    .single();
+    .maybeSingle();
 
-  if (error || !partner) {
-    return c.json({ error: 'Partner profile not found' }, 404);
+  if (partner) {
+    return c.json(partner);
   }
 
-  return c.json(partner);
+  // Auto-create partner profile if missing
+  try {
+    const { data: authUser } = await adminClient.auth.admin.getUserById(partnerId);
+    let username = 'Partner';
+    let avatarUrl: string | null = null;
+
+    if (authUser?.user) {
+      const meta = authUser.user.user_metadata ?? {};
+      const claims = meta.custom_claims ?? {};
+      username =
+        claims.global_name ??
+        meta.global_name ??
+        meta.full_name ??
+        meta.name ??
+        claims.name ??
+        authUser.user.email?.split('@')[0] ??
+        'Partner';
+      avatarUrl = meta.avatar_url ?? meta.picture ?? claims.avatar_url ?? null;
+    }
+
+    const { data: created } = await adminClient
+      .from('profiles')
+      .upsert(
+        { id: partnerId, username, avatar_url: avatarUrl, timezone: 'Asia/Kolkata' },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
+      .select()
+      .single();
+
+    if (created) return c.json(created);
+  } catch (e) {
+    await logError(c.env, 'GET /v1/profile/partner', 'Partner profile auto-create failed', e instanceof Error ? e.message : e, partnerId);
+  }
+
+  return c.json({ error: 'Partner profile not found' }, 404);
 });
 
 export default profile;

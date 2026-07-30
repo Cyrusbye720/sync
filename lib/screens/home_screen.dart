@@ -147,12 +147,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final stats = ref.watch(alarmStatsProvider);
 
     final me = auth.userId;
+    final pairingRow = pairing.pairing;
     final partner = pairing.partner;
-    final partnerId = me != null && pairing.pairing != null
-        ? pairing.pairing!.partnerId(me)
+    final partnerId = me != null && pairingRow != null
+        ? pairingRow.partnerId(me)
         : null;
 
-    if (partner == null) {
+    if (pairingRow == null || !pairingRow.isAccepted) {
       if (pairing.isLoading) {
         return const Scaffold(
           backgroundColor: AppColors.black,
@@ -163,7 +164,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       return const PairScreen();
     }
 
-    final partnerTime = _partnerTime(partner);
+    final effectivePartner = partner ??
+        ProfileModel(
+          id: partnerId ?? '',
+          username: 'PARTNER',
+          avatarUrl: null,
+          timezone: 'Asia/Kolkata',
+          batteryPercent: 100,
+          sleepStatus: 'awake',
+          fcmToken: null,
+          createdAt: DateTime.now(),
+        );
+
+    final partnerTime = _partnerTime(effectivePartner);
     final myAlarms =
         alarms.where((a) => a.ownerId == me).toList(growable: false);
     final theirAlarms =
@@ -205,10 +218,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           child: Column(
             children: [
               PartnerHeader(
-                partner: partner,
-                isAwake: partner.isAwake,
+                partner: effectivePartner,
+                isAwake: effectivePartner.isAwake,
                 localTime: partnerTime,
-                batteryPercent: partner.batteryPercent,
+                batteryPercent: effectivePartner.batteryPercent,
                 unpair: _confirmUnpair,
               ),
               TabBar(
