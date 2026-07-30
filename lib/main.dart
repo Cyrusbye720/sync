@@ -55,11 +55,9 @@ Future<void> _initializeAppServices() async {
   await ApiService.initialize();
 
   tzdata.initializeTimeZones();
-  String detectedTz = 'UTC';
   try {
     final dynamic tzObj = await FlutterTimezone.getLocalTimezone();
     final String tzName = tzObj is String ? tzObj : (tzObj.name ?? tzObj.toString());
-    detectedTz = tzName;
     tz.setLocalLocation(tz.getLocation(tzName));
   } catch (_) {
     tz.setLocalLocation(tz.getLocation('UTC'));
