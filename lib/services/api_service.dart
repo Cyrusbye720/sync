@@ -121,9 +121,6 @@ class ApiService {
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
   }
-      throw Exception('API error ${res.statusCode}: ${res.body}');
-    }
-  }
 
   // ─── Auth ──────────────────────────────────────────────────────────────
 
