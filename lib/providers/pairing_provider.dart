@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/pairing_model.dart';
 import '../models/profile_model.dart';
@@ -61,13 +63,65 @@ class PairingNotifier extends StateNotifier<PairingState> {
       _pollTimer?.cancel();
       return;
     }
+    // 1. Load cached state instantly from disk (0ms)
+    await _loadCache();
+
+    // 2. Fetch fresh state from backend
     await _refresh();
+
     // Poll every 15 seconds for pairing changes
     _pollTimer?.cancel();
     _pollTimer = Timer.periodic(
       const Duration(seconds: 15),
       (_) => _refresh(),
     );
+  }
+
+  Future<void> _loadCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final pairJson = prefs.getString('cache_pairing');
+      final partnerJson = prefs.getString('cache_partner');
+
+      PairingModel? cachedPair;
+      ProfileModel? cachedPartner;
+
+      if (pairJson != null && pairJson.isNotEmpty) {
+        cachedPair =
+            PairingModel.fromMap(jsonDecode(pairJson) as Map<String, dynamic>);
+      }
+      if (partnerJson != null && partnerJson.isNotEmpty) {
+        cachedPartner = ProfileModel.fromMap(
+            jsonDecode(partnerJson) as Map<String, dynamic>);
+      }
+
+      if (cachedPair != null) {
+        state = state.copyWith(
+          pairing: cachedPair,
+          partner: cachedPartner,
+          isLoading: false,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Pairing]_loadCache error: $e');
+    }
+  }
+
+  Future<void> _saveCache(PairingModel? pairing, ProfileModel? partner) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (pairing == null) {
+        await prefs.remove('cache_pairing');
+        await prefs.remove('cache_partner');
+      } else {
+        await prefs.setString('cache_pairing', jsonEncode(pairing.toMap()));
+        if (partner != null) {
+          await prefs.setString('cache_partner', jsonEncode(partner.toMap()));
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('[Pairing]_saveCache error: $e');
+    }
   }
 
   Future<void> _refresh() async {
@@ -81,24 +135,28 @@ class PairingNotifier extends StateNotifier<PairingState> {
           clearPartner: true,
           isLoading: false,
         );
+        await _saveCache(null, null);
         return;
       }
       ProfileModel? partner;
       if (pairing.userB != null && pairing.isAccepted) {
         partner = await _service.fetchPartnerProfile();
       }
+      final effectivePartner = partner ?? state.partner;
       state = state.copyWith(
         pairing: pairing,
-        partner: partner,
+        partner: effectivePartner,
         isLoading: false,
         clearError: true,
       );
+      await _saveCache(pairing, effectivePartner);
     } catch (e) {
+      // Offline / network failure: keep cached pairing state intact!
       state = state.copyWith(
         isLoading: false,
         error: 'Could not load pairing.',
       );
-      if (kDebugMode) debugPrint('[Pairing]_refresh $e');
+      if (kDebugMode) debugPrint('[Pairing]_refresh error: $e');
     }
   }
 
