@@ -106,6 +106,8 @@ class AlarmService {
   }
 
   Future<void> scheduleAlarm(AlarmModel alarm) async {
+    await requestNotificationPermission();
+    await requestExactAlarmPermission();
     await cancelAlarm(alarm.id);
     if (!alarm.isActive) return;
     if (alarm.daysOfWeek.isEmpty) {
@@ -116,9 +118,12 @@ class AlarmService {
         assetAudioPath: defaultAudioAsset,
         loopAudio: true,
         vibrate: alarm.vibrate,
+        volumeMaxIfMuted: true,
+        enableNotificationOnKill: true,
         notificationSettings: NotificationSettings(
           title: _encodeTitle(alarm),
           body: alarm.message,
+          stopButton: 'DISMISS',
         ),
       );
       await Alarm.set(alarmSettings: settings);
@@ -146,9 +151,12 @@ class AlarmService {
         assetAudioPath: defaultAudioAsset,
         loopAudio: true,
         vibrate: alarm.vibrate,
+        volumeMaxIfMuted: true,
+        enableNotificationOnKill: true,
         notificationSettings: NotificationSettings(
           title: _encodeTitle(alarm),
           body: alarm.message,
+          stopButton: 'DISMISS',
         ),
       );
       await Alarm.set(alarmSettings: settings);
