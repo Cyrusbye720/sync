@@ -15,8 +15,16 @@ class SyncWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        // Read cached data from FlutterSharedPreferences so periodic
+        // OS-triggered updates show real partner data instead of defaults.
+        val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
+        val partnerName = prefs.getString("flutter.widget_partner_name", "YOUR PARTNER") ?: "YOUR PARTNER"
+        val status = prefs.getString("flutter.widget_status", "SCREEN ON · ACTIVE") ?: "SCREEN ON · ACTIVE"
+        val timeText = prefs.getString("flutter.widget_time_text", "--:--") ?: "--:--"
+        val battery = prefs.getString("flutter.widget_battery", "--%") ?: "--%"
+
         for (appWidgetId in appWidgetIds) {
-            updateAppWidget(context, appWidgetManager, appWidgetId)
+            updateAppWidget(context, appWidgetManager, appWidgetId, partnerName, status, timeText, battery)
         }
     }
 

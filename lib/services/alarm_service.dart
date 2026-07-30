@@ -82,9 +82,17 @@ class AlarmService {
       importance: Importance.high,
       playSound: false,
     );
+    const backgroundChannel = AndroidNotificationChannel(
+      'sync_background',
+      'SYNC Background',
+      description: 'Keeps alarms and nudges active',
+      importance: Importance.low,
+      playSound: false,
+    );
     await android.createNotificationChannel(ring);
     await android.createNotificationChannel(reminder);
     await android.createNotificationChannel(defaultChannel);
+    await android.createNotificationChannel(backgroundChannel);
   }
 
   Future<bool> requestExactAlarmPermission() async {
@@ -102,6 +110,21 @@ class AlarmService {
           .resolvePlatformSpecificImplementation<
               IOSFlutterLocalNotificationsPlugin>();
       await ios?.requestPermissions(alert: true, badge: true, sound: true);
+    }
+  }
+
+  /// Request exemption from battery optimizations (Doze mode).
+  /// On OEMs like Xiaomi, Samsung, Huawei this is critical for
+  /// background execution. The user sees a system dialog.
+  Future<void> requestBatteryOptimizationExemption() async {
+    if (!Platform.isAndroid) return;
+    try {
+      final status = await Permission.ignoreBatteryOptimizations.status;
+      if (!status.isGranted) {
+        await Permission.ignoreBatteryOptimizations.request();
+      }
+    } catch (_) {
+      // Some devices don't support this permission — fail silently.
     }
   }
 

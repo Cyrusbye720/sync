@@ -19,6 +19,10 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
     // ignore: avoid_print
     print('[FCM background] ${message.messageId} ${message.data}');
   }
+  // The Worker sends notification-style FCM messages, so the system tray
+  // handles display. When the user taps, getInitialMessage() returns
+  // the data payload which now includes nudge_id/from_user/created_at
+  // for IncomingNudgeScreen.show() to parse.
 }
 
 /// Single owner of Firebase Cloud Messaging wiring.
@@ -127,5 +131,23 @@ class FcmService {
 
   void _onForegroundMessage(RemoteMessage message) {
     _events.add(message.data);
+  }
+
+  /// Reconstruct a [NudgeModel]-compatible map from FCM data payload.
+  /// The Worker sends: type, nudge_id, from_user, from_user_name, created_at.
+  /// Returns null if the data is not a nudge or is missing required fields.
+  static Map<String, dynamic>? parseNudgeFromFcmData(Map<String, dynamic> data) {
+    if (data['type'] != 'nudge') return null;
+    final nudgeId = data['nudge_id'] as String?;
+    final fromUser = data['from_user'] as String?;
+    final createdAt = data['created_at'] as String?;
+    if (nudgeId == null || fromUser == null || createdAt == null) return null;
+    return {
+      'id': nudgeId,
+      'from_user': fromUser,
+      'to_user': '', // not needed for display; IncomingNudgeScreen uses partner from pairing
+      'created_at': createdAt,
+      'read_at': null,
+    };
   }
 }

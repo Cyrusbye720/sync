@@ -94,10 +94,16 @@ nudges.post('/', async (c) => {
         fcmToken,
         'NUDGE',
         `${senderName} is trying to wake you up`,
+        {
+          nudge_id: nudge.id,
+          from_user: userId,
+          from_user_name: senderName,
+          created_at: nudge.created_at,
+        },
       );
     }
-  } catch {
-    // FCM is best-effort — the nudge row + WebSocket already delivered
+  } catch (e) {
+    await logError(c.env, 'POST /v1/nudges', 'FCM push failed', e instanceof Error ? e.message : e, userId);
   }
 
   return c.json({

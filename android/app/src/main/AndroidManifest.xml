@@ -9,6 +9,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
@@ -32,6 +33,10 @@
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="syncalarm" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
         </intent>
     </queries>
 
@@ -72,6 +77,16 @@
             </intent-filter>
 
         </activity>
+
+        <!-- Foreground service for background keep-alive (flutter_background_service). -->
+        <service
+            android:name="id.flutter.flutter_background_service.BackgroundService"
+            android:foregroundServiceType="specialUse"
+            android:exported="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="alarm_sync" />
+        </service>
 
         <!-- Boot receiver for alarm reschedule. SYNC has no FCM service. -->
         <receiver
@@ -116,11 +131,4 @@
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
-
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT" />
-            <data android:mimeType="text/plain" />
-        </intent>
-    </queries>
 </manifest>

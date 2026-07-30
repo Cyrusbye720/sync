@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 
 import '../models/alarm_model.dart';
@@ -14,6 +15,7 @@ import '../providers/connectivity_provider.dart';
 import '../providers/nudge_provider.dart';
 import '../providers/pairing_provider.dart';
 import '../services/api_service.dart';
+import '../services/widget_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/alarm_card.dart';
 import '../widgets/monochrome_button.dart';
@@ -135,6 +137,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
   }
 
+  String _formatOffset(DateTime dt) {
+    final offset = dt.timeZoneOffset;
+    final hours = offset.inHours;
+    final minutes = offset.inMinutes.abs() % 60;
+    if (hours == 5 && minutes == 30) return 'IST';
+    final minStr = minutes.toString().padLeft(2, '0');
+    final sign = hours >= 0 ? '+' : '-';
+    return 'GMT$sign${hours.abs().toString().padLeft(2, '0')}:$minStr';
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<AsyncValue<List<NudgeModel>>>(nudgeStreamProvider, (_, next) {
@@ -177,6 +189,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
 
     final partnerTime = _partnerTime(effectivePartner);
+
+    // Sync partner data to native Android widget (via post-frame to avoid build side effects).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final fmt = DateFormat('hh:mm a');
+      final timeStr = '${fmt.format(partnerTime)} (${_formatOffset(partnerTime)})';
+      final statusText = effectivePartner.isAwake ? "SCREEN ON · ACTIVE" : "SCREEN OFF · SLEEPING";
+      WidgetService.updateWidget(
+        partnerName: effectivePartner.username,
+        status: statusText,
+        timeText: timeStr,
+        battery: '${effectivePartner.batteryPercent}%',
+      );
+    });
+
     final myAlarms =
         alarms.where((a) => a.ownerId == me).toList(growable: false);
     final theirAlarms =

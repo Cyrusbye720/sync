@@ -119,6 +119,7 @@ export async function sendFcmNotification(
   fcmToken: string,
   title: string,
   body: string,
+  data?: Record<string, string>,
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const accessToken = await getAccessToken(sa);
@@ -141,7 +142,7 @@ export async function sendFcmNotification(
               click_action: 'OPEN_MAIN_ACTIVITY',
             },
           },
-          data: { type: 'nudge' },
+          data: { type: 'nudge', ...data },
         },
       }),
     });
@@ -159,7 +160,9 @@ export async function sendFcmNotification(
             .from('profiles')
             .update({ fcm_token: null })
             .eq('id', targetUserId);
-        } catch (e) {}
+        } catch (e) {
+          console.warn('[FCM] Failed to clear stale token:', e);
+        }
       }
       return { success: false, error: `FCM ${res.status}: ${text}` };
     }

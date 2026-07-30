@@ -21,6 +21,7 @@ import 'screens/login_screen.dart';
 import 'screens/pair_screen.dart';
 import 'services/alarm_service.dart';
 import 'services/api_service.dart';
+import 'services/background_service.dart';
 import 'services/battery_service.dart';
 import 'services/fcm_service.dart';
 import 'theme/app_theme.dart';
@@ -67,6 +68,7 @@ Future<void> _initializeAppServices() async {
   // Android's native launch screen in a release build.
   try {
     await AlarmService.instance.initialize();
+    await AlarmService.instance.requestBatteryOptimizationExemption();
   } catch (_) {
     // The app can still render without local alarm setup for this launch.
   }
@@ -81,6 +83,13 @@ Future<void> _initializeAppServices() async {
   // id to save the device token on profiles.fcm_token) but before
   // runApp so the root widget can subscribe to [FcmService.syncEvents].
   await FcmService.instance.initialize();
+
+  // Start foreground service to keep the app alive in background.
+  try {
+    await BackgroundService.instance.start();
+  } catch (_) {
+    // Background service is best-effort; app works without it.
+  }
 }
 
 void _onNativeAlarmFire(AlarmSettings settings) {
@@ -145,10 +154,18 @@ class _SyncAppState extends ConsumerState<SyncApp> {
     final type = data['type'] as String?;
     if (type == 'nudge') {
       try {
+        // Try full parse first (WebSocket path sends complete nudge data).
         final nudge = NudgeModel.fromMap(data);
         IncomingNudgeScreen.show(navContext, nudge);
       } catch (_) {
-        // If data doesn't contain full nudge fields, ignore gracefully.
+        // FCM data payload may have different field names — try FCM-specific parser.
+        final parsed = FcmService.parseNudgeFromFcmData(data);
+        if (parsed != null) {
+          try {
+            final nudge = NudgeModel.fromMap(parsed);
+            IncomingNudgeScreen.show(navContext, nudge);
+          } catch (_) {}
+        }
       }
     }
   }
