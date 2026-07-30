@@ -110,12 +110,45 @@ profile.patch('/', async (c) => {
     { auth: { persistSession: false } },
   );
 
-  const { error } = await adminClient
-    .from('profiles')
-    .update(parsed.data)
-    .eq('id', userId);
+  // First try update (the common case — profile already exists).
+  const updatePayload = parsed.data;
 
-  if (error) return c.json({ error: error.message }, 500);
+  const { error: updateErr, count } = await adminClient
+    .from('profiles')
+    .update(updatePayload)
+    .eq('id', userId)
+    .select();
+
+  if (updateErr) return c.json({ error: updateErr.message }, 500);
+
+  // If no row was updated, the profile doesn't exist yet — create it.
+  if (count === 0) {
+    try {
+      const { data: authUser } = await adminClient.auth.admin.getUserById(userId);
+      const meta = authUser?.user?.user_metadata || {};
+      const claims = meta['custom_claims'] ?? meta;
+      const username =
+        (claims?.['global_name'] as string | undefined) ??
+        (meta['full_name'] as string | undefined) ??
+        (meta['name'] as string | undefined) ??
+        (meta['user_name'] as string | undefined) ??
+        (meta['preferred_username'] as string | undefined) ??
+        `user_${userId.substring(0, 6)}`;
+      const avatarUrl = (meta['avatar_url'] as string | undefined) ?? null;
+
+      const { error: insertErr } = await adminClient
+        .from('profiles')
+        .insert({ id: userId, username, avatar_url: avatarUrl, ...updatePayload });
+      if (insertErr) return c.json({ error: insertErr.message }, 500);
+    } catch (e) {
+      // If admin auth lookup fails, create with minimal username
+      const { error: insertErr } = await adminClient
+        .from('profiles')
+        .insert({ id: userId, username: `user_${userId.substring(0, 6)}`, ...updatePayload });
+      if (insertErr) return c.json({ error: insertErr.message }, 500);
+    }
+  }
+
   return c.json({ ok: true });
 });
 

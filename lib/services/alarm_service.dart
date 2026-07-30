@@ -79,8 +79,9 @@ class AlarmService {
       defaultChannelId,
       defaultChannelName,
       description: 'Generic FCM messages',
-      importance: Importance.high,
-      playSound: false,
+      importance: Importance.max,
+      playSound: true,
+      enableVibration: true,
     );
     const backgroundChannel = AndroidNotificationChannel(
       'sync_background',

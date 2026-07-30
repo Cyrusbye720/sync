@@ -1,7 +1,7 @@
 name: sync
 description: "SYNC — A couple alarm app with shared alarm management and realtime sync."
 publish_to: "none"
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: ">=3.8.0 <4.0.0"

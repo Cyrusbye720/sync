@@ -80,6 +80,11 @@ class FcmService {
 
       // Foreground messages.
       FirebaseMessaging.onMessage.listen(_onForegroundMessage);
+
+      // Background notification taps (app in memory but not foreground).
+      FirebaseMessaging.onMessageOpenedApp.listen((message) {
+        _events.add(message.data);
+      });
     } catch (e, stack) {
       if (kDebugMode) {
         // ignore: avoid_print

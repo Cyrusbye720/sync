@@ -118,6 +118,7 @@ class _SyncAppState extends ConsumerState<SyncApp> {
   AppLifecycleListener? _lifecycle;
   static const _channel = MethodChannel('syncalarm/deeplink');
   StreamSubscription<Map<String, dynamic>>? _fcmSub;
+  StreamSubscription<bool>? _authSub;
   @override
   void initState() {
     super.initState();
@@ -136,6 +137,11 @@ class _SyncAppState extends ConsumerState<SyncApp> {
           await ref.read(authProvider.notifier).handleAuthCode(code);
         }
       }
+    });
+
+    // Push battery + timezone immediately after login (not just on resume).
+    _authSub = ApiService.instance.authState.listen((authed) {
+      if (authed) _refresh();
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -174,6 +180,7 @@ class _SyncAppState extends ConsumerState<SyncApp> {
   void dispose() {
     _lifecycle?.dispose();
     _fcmSub?.cancel();
+    _authSub?.cancel();
     super.dispose();
   }
 

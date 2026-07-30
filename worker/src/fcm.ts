@@ -139,7 +139,7 @@ export async function sendFcmNotification(
             priority: 'high',
             notification: {
               channel_id: 'sync_default',
-              click_action: 'OPEN_MAIN_ACTIVITY',
+              click_action: 'FLUTTER_NOTIFICATION_CLICK',
             },
           },
           data: { type: 'nudge', ...data },

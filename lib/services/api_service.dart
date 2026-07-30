@@ -157,8 +157,17 @@ class ApiService {
   Future<void> _clearSession() async {
     _token = null;
     _userId = null;
+    _wsShouldReconnect = false;
+    _wsPingTimer?.cancel();
+    _wsReconnectTimer?.cancel();
     _wsChannel?.sink.close();
     _wsChannel = null;
+    _nudgeController?.close();
+    _nudgeController = null;
+    _announcementController?.close();
+    _announcementController = null;
+    _nudgeBroadcast = null;
+    _announcementBroadcast = null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_userIdKey);
@@ -344,6 +353,7 @@ class ApiService {
   // ─── WebSocket (Realtime Events) ───────────────────────────────────────
 
   Timer? _wsReconnectTimer;
+  Timer? _wsPingTimer;
   bool _wsShouldReconnect = false;
   StreamController<NudgeModel>? _nudgeController;
   StreamController<AnnouncementModel>? _announcementController;
@@ -368,6 +378,7 @@ class ApiService {
     if (_wsShouldReconnect && _nudgeController != null) return;
     _wsChannel?.sink.close();
     _wsReconnectTimer?.cancel();
+    _wsPingTimer?.cancel();
     _nudgeController?.close();
     _announcementController?.close();
     _wsShouldReconnect = true;
@@ -389,11 +400,23 @@ class ApiService {
   void _wsConnect() {
     if (!_wsShouldReconnect || _token == null) return;
 
+    _wsPingTimer?.cancel();
+    // Close any stale previous connection before opening a new one.
+    try { _wsChannel?.sink.close(); } catch (_) {}
+    _wsChannel = null;
+
     final wsUrl = ApiConfig.baseUrl
         .replaceFirst('https://', 'wss://')
         .replaceFirst('http://', 'ws://');
     final uri = Uri.parse('$wsUrl/v1/events?token=$_token');
     _wsChannel = WebSocketChannel.connect(uri);
+
+    // Send a ping every 30 s to keep Cloudflare's 100 s idle timeout alive.
+    _wsPingTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      try {
+        _wsChannel?.sink.add(jsonEncode({'type': 'ping'}));
+      } catch (_) {}
+    });
 
     _wsChannel!.stream.listen(
       (event) {
@@ -421,6 +444,7 @@ class ApiService {
 
   void _wsScheduleReconnect() {
     if (!_wsShouldReconnect) return;
+    _wsPingTimer?.cancel();
     _wsReconnectTimer?.cancel();
     _wsReconnectTimer = Timer(const Duration(seconds: 3), _wsConnect);
   }
@@ -429,6 +453,7 @@ class ApiService {
   void disconnectEvents() {
     _wsShouldReconnect = false;
     _wsReconnectTimer?.cancel();
+    _wsPingTimer?.cancel();
     _wsChannel?.sink.close();
     _wsChannel = null;
     _nudgeController?.close();
