@@ -97,9 +97,11 @@ class AlarmModel {
   }
 
   String formattedTime() {
-    final h = hour.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final h12 = hour % 12 == 0 ? 12 : hour % 12;
+    final h = h12.toString().padLeft(2, '0');
     final m = minute.toString().padLeft(2, '0');
-    return '$h:$m';
+    return '$h:$m $period';
   }
 
   /// True if the alarm fires every day (no days selected means once-only).

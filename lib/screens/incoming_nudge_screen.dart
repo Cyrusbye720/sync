@@ -83,8 +83,11 @@ class _IncomingNudgeScreenState extends ConsumerState<IncomingNudgeScreen> {
 
   String get _formattedTime {
     final local = widget.nudge.createdAt.toLocal();
-    return '${local.hour.toString().padLeft(2, '0')}'
-        ':${local.minute.toString().padLeft(2, '0')}';
+    final period = local.hour >= 12 ? 'PM' : 'AM';
+    final h12 = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final h = h12.toString().padLeft(2, '0');
+    final m = local.minute.toString().padLeft(2, '0');
+    return '$h:$m $period';
   }
 
   @override

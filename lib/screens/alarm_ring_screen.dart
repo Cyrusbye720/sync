@@ -306,6 +306,10 @@ class AlarmRingPayload {
     final snooze =
         AlarmService.instance.decodeSnoozeMinutes(settings);
     final now = DateTime.now();
+    final period = now.hour >= 12 ? 'PM' : 'AM';
+    final h12 = now.hour % 12 == 0 ? 12 : now.hour % 12;
+    final h = h12.toString().padLeft(2, '0');
+    final m = now.minute.toString().padLeft(2, '0');
     return AlarmRingPayload(
       alarmId: id,
       label: label,
@@ -313,8 +317,7 @@ class AlarmRingPayload {
       hour: now.hour,
       minute: now.minute,
       snoozeMinutes: snooze,
-      currentTimeFormatted:
-          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+      currentTimeFormatted: '$h:$m $period',
     );
   }
 }
