@@ -34,11 +34,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
 
-  /// Nudge ids we have already shown to the user. Prevents pushing
-  /// IncomingNudgeScreen repeatedly when the Realtime stream emits
-  /// the same row in successive updates.
-  final Set<String> _shownNudgeIds = {};
-
   @override
   void initState() {
     super.initState();

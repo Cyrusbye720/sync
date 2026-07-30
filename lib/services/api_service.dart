@@ -303,12 +303,13 @@ class ApiService {
     String? reaction,
     String? actedBy,
   }) async {
-    final res = await _post('/v1/alarms/logs', {
+    final payload = <String, dynamic>{
       'alarm_id': alarmId,
       'action': action,
-      if (reaction != null) 'reaction': reaction,
-      if (actedBy != null) 'acted_by': actedBy,
-    });
+    };
+    if (reaction != null) payload['reaction'] = reaction;
+    if (actedBy != null) payload['acted_by'] = actedBy;
+    final res = await _post('/v1/alarms/logs', payload);
     return AlarmLogModel.fromMap(res);
   }
 

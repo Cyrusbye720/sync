@@ -21,7 +21,7 @@ final nudgeStreamProvider = StreamProvider<List<NudgeModel>>((ref) {
   final nudges = <NudgeModel>[];
   final seenIds = <String>{};
 
-  void _addNudge(NudgeModel nudge) {
+  void addNudge(NudgeModel nudge) {
     if (seenIds.contains(nudge.id)) return;
     seenIds.add(nudge.id);
     nudges.insert(0, nudge);
@@ -55,7 +55,7 @@ final nudgeStreamProvider = StreamProvider<List<NudgeModel>>((ref) {
 
   // Then listen for realtime nudges via shared WebSocket
   final sub = ApiService.instance.nudgeStream.listen(
-    _addNudge,
+    addNudge,
     onError: (_) {},
   );
 
