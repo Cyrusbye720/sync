@@ -224,18 +224,37 @@ export async function handleCallback(
     .run();
 
   // Redirect to app deep link with one-time code.
-  // Browsers cannot follow 302 redirects to custom schemes (syncalarm://),
-  // so we serve an HTML page that triggers the deep link via JavaScript.
   const deepLink = `syncalarm://auth-callback/?code=${loginCode}`;
+  const intentUri = `intent://auth-callback/?code=${loginCode}#Intent;scheme=syncalarm;package=com.sync.alarm;end;`;
   const html = `<!DOCTYPE html>
-<html><head><title>SYNC</title></head>
-<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-<script>window.location=${JSON.stringify(deepLink)};</script>
-<div style="text-align:center">
-<p style="font-size:24px;margin-bottom:24px">Redirecting to SYNC app...</p>
-<a href="${deepLink}" style="display:inline-block;padding:16px 48px;background:#fff;color:#000;font-size:20px;font-weight:bold;border-radius:4px;text-decoration:none">Open SYNC</a>
-<p style="margin-top:16px;font-size:14px;color:#888">If the app doesn't open, tap the button above</p>
+<html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SYNC - Logged In</title>
+</head>
+<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center">
+<div style="padding:24px">
+  <div style="font-size:56px;margin-bottom:16px">⚡</div>
+  <h2 style="font-size:22px;letter-spacing:2px;margin:0 0 12px;color:#fff">LOGIN SUCCESSFUL</h2>
+  <p style="color:#aaa;font-size:14px;margin-bottom:24px">Opening SYNC app & closing browser...</p>
+  <a id="open-btn" href="${intentUri}" style="display:inline-block;padding:16px 36px;background:#fff;color:#000;font-size:16px;font-weight:bold;border-radius:8px;text-decoration:none">OPEN SYNC APP</a>
 </div>
+<script>
+  const intentUrl = "${intentUri}";
+  const deepLink = "${deepLink}";
+  
+  // 1. Try Android Intent URI (auto-launches in Chrome)
+  window.location.href = intentUrl;
+
+  // 2. Fallback to custom scheme after short delay
+  setTimeout(() => {
+    window.location.href = deepLink;
+  }, 250);
+
+  // 3. Auto-close browser tab after app launches
+  setTimeout(() => {
+    try { window.close(); } catch(e){}
+  }, 1200);
+</script>
 </body></html>`;
   return new Response(html, {
     status: 200,
