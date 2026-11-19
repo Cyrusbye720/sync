@@ -10,8 +10,8 @@ import { logError } from './logger.js';
 // ─── Authentication Middleware ────────────────────────────────────────────────
 
 /**
- * Extracts Bearer token from Authorization header, resolves session,
- * and injects userId + supabase client into Hono context.
+ * Extracts Bearer token from Authorization header, resolves a D1 session,
+ * and injects userId into Hono context.
  */
 export const authenticate = createMiddleware<HonoEnv>(async (c, next) => {
   const auth = c.req.header('authorization');
@@ -25,9 +25,8 @@ export const authenticate = createMiddleware<HonoEnv>(async (c, next) => {
   }
 
   try {
-    const { userId, supabase } = await resolveSession(token, c.env);
+    const { userId } = await resolveSession(token, c.env);
     c.set('userId', userId);
-    c.set('supabase', supabase);
   } catch (e) {
     await logError(c.env, 'authenticate', e instanceof Error ? e.message : 'Auth failed', undefined, undefined, c.req.header('cf-connecting-ip') ?? undefined);
     return c.json({ error: 'Invalid or expired session' }, 401);

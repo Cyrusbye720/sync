@@ -1,18 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../providers/pairing_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/monochrome_button.dart';
-import '../widgets/monochrome_input.dart';
 import 'home_screen.dart';
 
-/// Pairing screen — generates a 6-digit code or accepts an inbound code.
-///
-/// Once a pairing transitions to `accepted`, RTC pushes update the
-/// `pairingProvider` and we route to `HomeScreen`.
 class PairScreen extends ConsumerStatefulWidget {
   const PairScreen({super.key});
 
@@ -26,22 +19,9 @@ class _PairScreenState extends ConsumerState<PairScreen> {
   bool _busy = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeAutoRoute());
-  }
-
-  @override
   void dispose() {
     _codeCtl.dispose();
     super.dispose();
-  }
-
-  Future<void> _maybeAutoRoute() async {
-    final pairing = ref.read(pairingProvider).pairing;
-    if (pairing != null && pairing.isAccepted && mounted) {
-      _goHome();
-    }
   }
 
   void _goHome() {
@@ -65,195 +45,195 @@ class _PairScreenState extends ConsumerState<PairScreen> {
     final code = _codeCtl.text.trim();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Code must be 6 digits.')),
+        const SnackBar(content: Text('Enter your partner\'s 6-digit code.')),
       );
       return;
     }
     setState(() => _busy = true);
     final ok = await ref.read(pairingProvider.notifier).acceptInvite(code);
-    if (ok) {
-      _goHome();
-    }
+    if (ok && mounted) _goHome();
     if (mounted) setState(() => _busy = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<PairingState>(pairingProvider, (prev, next) {
-      final pairing = next.pairing;
-      if (pairing != null && pairing.isAccepted && mounted) {
-        _goHome();
-      }
+    ref.listen<PairingState>(pairingProvider, (_, next) {
+      if (next.pairing?.isAccepted == true && mounted) _goHome();
     });
-
     final state = ref.watch(pairingProvider);
-    final error = state.error;
 
     return Scaffold(
-      backgroundColor: AppColors.black,
-      appBar: AppBar(
-        title: Text('PAIR', style: TextStyle(fontSize: 14.sp, letterSpacing: 2)),
-        automaticallyImplyLeading: false,
-      ),
+      appBar: AppBar(title: const Text('Two of you')),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 8),
-              Text(
-                'BUILT FOR TWO PEOPLE.',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontFamily: 'RobotoMono',
-                  fontSize: 11.sp,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Pair with the one who matters.',
-                style: TextStyle(
-                  color: AppColors.white,
-                  fontSize: 22.sp,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 32),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.black,
-                  border: Border.all(color: AppColors.border, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CREATE INVITE LINK',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontFamily: 'RobotoMono',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.sp,
-                        letterSpacing: 1.4,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          children: [
+            const Text(
+              'Start your shared mornings',
+              style: TextStyle(fontSize: 28, height: 1.15,
+                  fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Pair once, then create alarms for either of you.',
+              style: TextStyle(color: AppColors.muted, fontSize: 16),
+            ),
+            const SizedBox(height: 28),
+            _PairCard(
+              icon: Icons.favorite_outline_rounded,
+              title: 'Invite your partner',
+              subtitle: 'Create a code and share it with them.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_generatedCode != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 18),
+                      decoration: BoxDecoration(
+                        color: AppColors.creamStrong,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Share with your partner so they can connect.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if (_generatedCode != null)
-                      Container(
-                        margin: const EdgeInsets.only(bottom: 14),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          border: Border.all(
-                              color: AppColors.white, width: 1),
-                        ),
-                        child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _generatedCode!,
-                              style: TextStyle(
-                                color: AppColors.white,
-                                fontFamily: 'RobotoMono',
-                                fontSize: 28.sp,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 4,
-                              ),
-                            ),
-                            const Icon(Icons.copy,
-                                color: AppColors.white, size: 18),
-                          ],
+                      child: Text(
+                        _generatedCode!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          letterSpacing: 8,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.cocoa,
                         ),
                       ),
-                    MonochromeButton(
-                      label: _generatedCode == null
-                          ? 'Create Invite'
-                          : 'Make a New One',
-                      icon: Icons.refresh,
-                      variant: MonoVariant.primary,
-                      loading: _busy,
-                      onPressed: _generate,
                     ),
+                    const SizedBox(height: 12),
                   ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.black,
-                  border: Border.all(color: AppColors.border, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ENTER A CODE',
-                      style: TextStyle(
-                        color: AppColors.white,
-                        fontFamily: 'RobotoMono',
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.sp,
-                        letterSpacing: 1.4,
+                  FilledButton.icon(
+                    onPressed: _busy ? null : _generate,
+                    icon: const Icon(Icons.add_link_rounded),
+                    label: Text(_generatedCode == null
+                        ? 'Create invite code'
+                        : 'Create another code'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Your partner shared a 6-digit code? Enter it here.',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 12.sp,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    MonochromeInput(
-                      controller: _codeCtl,
-                      icon: Icons.numbers,
-                      keyboardType: TextInputType.number,
-                      hint: '6-digit code',
-                      maxLines: 1,
-                    ),
-                    const SizedBox(height: 14),
-                    MonochromeButton(
-                      label: 'Join',
-                      icon: Icons.check,
-                      variant: MonoVariant.outline,
-                      loading: _busy,
-                      onPressed: _accept,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              if (error != null)
-                Text(
-                  error.toUpperCase(),
-                  style: TextStyle(
-                    color: AppColors.white,
-                    fontFamily: 'RobotoMono',
-                    fontSize: 11.sp,
-                    letterSpacing: 1.2,
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _PairCard(
+              icon: Icons.numbers_rounded,
+              title: 'I have a code',
+              subtitle: 'Enter the code your partner sent.',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _codeCtl,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
+                    style: const TextStyle(
+                      fontSize: 24,
+                      letterSpacing: 8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: const InputDecoration(
+                      counterText: '',
+                      hintText: '000000',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _busy ? null : _accept,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.coralDark,
+                      side: const BorderSide(color: AppColors.peach),
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text('Join my partner'),
+                  ),
+                ],
+              ),
+            ),
+            if (state.error != null) ...[
+              const SizedBox(height: 16),
+              Text(state.error!,
+                  style: const TextStyle(color: AppColors.error)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PairCard extends StatelessWidget {
+  const _PairCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.creamStrong,
+                foregroundColor: AppColors.coralDark,
+                child: Icon(icon),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w800, fontSize: 16)),
+                    Text(subtitle,
+                        style: const TextStyle(
+                            color: AppColors.muted, fontSize: 13)),
+                  ],
                 ),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }

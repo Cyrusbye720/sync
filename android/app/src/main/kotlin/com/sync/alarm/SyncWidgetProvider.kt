@@ -11,21 +11,44 @@ import android.widget.RemoteViews
 
 class SyncWidgetProvider : AppWidgetProvider() {
 
+    override fun onEnabled(context: Context) {
+        super.onEnabled(context)
+        showLoadingForAll(context)
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        super.onReceive(context, intent)
+        if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE ||
+            intent.action == Intent.ACTION_BOOT_COMPLETED ||
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, SyncWidgetProvider::class.java))
+            onUpdate(context, manager, ids)
+        }
+    }
+
+    override fun onDisabled(context: Context) {
+        super.onDisabled(context)
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
         try {
-            val (partnerName, status, timeText, battery) = readWidgetData(context)
+            val data = readWidgetData(context)
+            val stale = isStale(data.updatedAt)
 
             for (appWidgetId in appWidgetIds) {
                 updateAppWidget(
                     context, appWidgetManager, appWidgetId,
-                    partnerName.ifEmpty { "YOUR PARTNER" },
-                    status.ifEmpty { "SCREEN ON · ACTIVE" },
-                    timeText.ifEmpty { "--:--" },
-                    battery.ifEmpty { "--%" }
+                    data.partnerName.ifEmpty { "YOUR PARTNER" },
+                    if (stale) "LAST KNOWN · OPEN APP TO REFRESH"
+                    else if (data.state == "error") "SYNC NEEDS ATTENTION"
+                    else data.status.ifEmpty { "SCREEN ON · ACTIVE" },
+                    data.timeText.ifEmpty { "--:--" },
+                    data.battery.ifEmpty { "--%" }
                 )
             }
         } catch (e: Exception) {
@@ -52,6 +75,8 @@ class SyncWidgetProvider : AppWidgetProvider() {
             var status = prefs.getString("flutter.widget_status", null) ?: ""
             var timeText = prefs.getString("flutter.widget_time_text", null) ?: ""
             var battery = prefs.getString("flutter.widget_battery", null) ?: ""
+            val state = prefs.getString("flutter.widget_state", null) ?: ""
+            val updatedAt = prefs.getString("flutter.widget_updated_at", null) ?: ""
 
             // Fallback: try unprefixed keys (some plugin versions)
             if (partnerName.isEmpty()) {
@@ -61,10 +86,10 @@ class SyncWidgetProvider : AppWidgetProvider() {
                 battery = prefs.getString("widget_battery", null) ?: ""
             }
 
-            WidgetData(partnerName, status, timeText, battery)
+            WidgetData(partnerName, status, timeText, battery, state, updatedAt)
         } catch (e: Exception) {
             Log.e("SyncWidgetProvider", "readWidgetData failed", e)
-            WidgetData("", "", "", "")
+            WidgetData("", "", "", "", "error", "")
         }
     }
 
@@ -90,8 +115,36 @@ class SyncWidgetProvider : AppWidgetProvider() {
         val partnerName: String,
         val status: String,
         val timeText: String,
-        val battery: String
+        val battery: String,
+        val state: String,
+        val updatedAt: String
     )
+
+    private fun isStale(updatedAt: String): Boolean {
+        if (updatedAt.isEmpty()) return true
+        return try {
+            val updatedMillis = java.time.Instant.parse(updatedAt).toEpochMilli()
+            System.currentTimeMillis() - updatedMillis > 30 * 60 * 1000
+        } catch (_: Exception) {
+            true
+        }
+    }
+
+    private fun showLoadingForAll(context: Context) {
+        val manager = AppWidgetManager.getInstance(context)
+        val ids = manager.getAppWidgetIds(ComponentName(context, SyncWidgetProvider::class.java))
+        for (id in ids) {
+            updateAppWidget(
+                context,
+                manager,
+                id,
+                partnerName = "SYNC",
+                status = "SYNCING PARTNER",
+                timeText = "OPEN APP",
+                battery = "--%"
+            )
+        }
+    }
 
     companion object {
         private const val TAG = "SyncWidgetProvider"

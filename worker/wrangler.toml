@@ -3,19 +3,22 @@ main = "src/index.ts"
 compatibility_date = "2025-07-14"
 compatibility_flags = ["nodejs_compat"]
 
+[triggers]
+crons = ["0 */6 * * *"]
+
 # Secrets (set via `wrangler secret put`):
-#   SUPABASE_URL
-#   SUPABASE_ANON_KEY
-#   SUPABASE_SERVICE_ROLE_KEY
+#   GITHUB_CLIENT_ID
+#   GITHUB_CLIENT_SECRET
+#   DISCORD_CLIENT_ID
+#   DISCORD_CLIENT_SECRET
 #   ADMIN_SECRET
-#   FIREBASE_SERVICE_ACCOUNT_JSON
 #   SESSION_ENCRYPTION_KEY
 
 [[d1_databases]]
 binding = "DB"
 database_name = "sync-sessions"
-database_id = "bbd917d5-5f42-48b3-8c87-99be04a2c7d7"
+database_id = "acc1a911-598d-4ec8-9768-55453f34482f"
 
 [[kv_namespaces]]
 binding = "SESSIONS"
-id = "77a237d3b67f42de8b3476334c45df95"
+id = "d1197f92094c4aa895412ceea1682742"

@@ -1,239 +1,180 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-/// Strict palette — these are the ONLY colors used anywhere in the app.
 class AppColors {
   AppColors._();
 
-  static const Color black = Color(0xFF000000);
-  static const Color white = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFF1A1A1A);
-  static const Color surfaceAlt = Color(0xFFF5F5F5);
-  static const Color border = Color(0xFF333333);
-  static const Color borderLight = Color(0xFFCCCCCC);
-  static const Color textSecondary = Color(0xFF999999);
-  static const Color textDisabled = Color(0xFF666666);
-
-  /// Semantic aliases that *must* resolve to grayscale.
-  static const Color primary = white;
-  static const Color onPrimary = black;
-  static const Color background = black;
-  static const Color onBackground = white;
-  static const Color error = white;
-  static const Color onError = black;
+  static const cream = Color(0xFFFFF8EF);
+  static const creamStrong = Color(0xFFF7EBDC);
+  static const cocoa = Color(0xFF3B2F2A);
+  static const ink = Color(0xFF4A3C35);
+  static const muted = Color(0xFF807069);
+  static const coral = Color(0xFFE78372);
+  static const coralDark = Color(0xFFC86456);
+  static const peach = Color(0xFFF6CDBA);
+  static const sage = Color(0xFF91A78E);
+  static const white = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE8DACE);
+  static const surface = white;
+  static const surfaceAlt = creamStrong;
+  static const textSecondary = muted;
+  static const textDisabled = Color(0xFFAAA098);
+  static const primary = coral;
+  static const onPrimary = white;
+  static const background = cream;
+  static const onBackground = cocoa;
+  static const error = Color(0xFFB94A42);
+  static const onError = white;
+  static const black = cream;
 }
 
-/// Standard border — used for every elevated surface in place of shadows.
-const Border standardBorder = Border(
-  top: BorderSide(color: AppColors.border, width: 1),
-  bottom: BorderSide(color: AppColors.border, width: 1),
-  left: BorderSide(color: AppColors.border, width: 1),
-  right: BorderSide(color: AppColors.border, width: 1),
-);
+const Border standardBorder =
+    Border.fromBorderSide(BorderSide(color: AppColors.border, width: 1));
+const double maxRadius = 24;
 
-/// Maximum border radius — sharp, brutalist corners.
-const double maxRadius = 4.0;
-
-/// Application theme.
 class AppTheme {
   AppTheme._();
 
   static ThemeData get dark {
-    final base = ThemeData.dark(useMaterial3: true);
-    final mono = GoogleFonts.robotoMonoTextTheme(base.textTheme);
-    final sans = GoogleFonts.robotoTextTheme(base.textTheme);
+    final base = ThemeData.light(useMaterial3: true);
+    final textTheme = base.textTheme.apply(
+      bodyColor: AppColors.cocoa,
+      displayColor: AppColors.cocoa,
+    );
 
     return base.copyWith(
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.black,
-      canvasColor: AppColors.black,
-      colorScheme: const ColorScheme.dark(
-        primary: AppColors.white,
-        onPrimary: AppColors.black,
-        secondary: AppColors.white,
-        onSecondary: AppColors.black,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.background,
+      canvasColor: AppColors.background,
+      colorScheme: const ColorScheme.light(
+        primary: AppColors.primary,
+        onPrimary: AppColors.onPrimary,
+        secondary: AppColors.sage,
+        onSecondary: AppColors.cocoa,
         surface: AppColors.surface,
-        onSurface: AppColors.white,
-        error: AppColors.white,
-        onError: AppColors.black,
+        onSurface: AppColors.cocoa,
+        error: AppColors.error,
+        onError: AppColors.onError,
       ),
-      textTheme: sans.copyWith(
-        displayLarge: mono.displayLarge?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -1.0,
+      textTheme: textTheme.copyWith(
+        headlineLarge: textTheme.headlineLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -1,
         ),
-        displayMedium: mono.displayMedium?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w700,
+        headlineMedium: textTheme.headlineMedium?.copyWith(
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.5,
         ),
-        displaySmall: mono.displaySmall?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w700,
+        titleLarge: textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
         ),
-        headlineLarge: mono.headlineLarge?.copyWith(
-          color: AppColors.white,
+        titleMedium: textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w700,
         ),
-        headlineMedium: mono.headlineMedium?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w600,
+        labelLarge: textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w800,
         ),
-        headlineSmall: mono.headlineSmall?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w600,
-        ),
-        titleLarge: mono.titleLarge?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w600,
-        ),
-        titleMedium: mono.titleMedium?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w500,
-        ),
-        titleSmall: mono.titleSmall?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w500,
-        ),
-        bodyLarge: sans.bodyLarge?.copyWith(color: AppColors.white),
-        bodyMedium: sans.bodyMedium?.copyWith(color: AppColors.white),
-        bodySmall: sans.bodySmall?.copyWith(color: AppColors.textSecondary),
-        labelLarge: mono.labelLarge?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-        labelMedium: mono.labelMedium?.copyWith(color: AppColors.white),
-        labelSmall: mono.labelSmall?.copyWith(color: AppColors.textSecondary),
       ),
-      iconTheme: const IconThemeData(color: AppColors.white),
+      iconTheme: const IconThemeData(color: AppColors.cocoa),
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
         thickness: 1,
         space: 1,
       ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.black,
-        foregroundColor: AppColors.white,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: AppColors.background,
+        foregroundColor: AppColors.cocoa,
         elevation: 0,
         scrolledUnderElevation: 0,
-        titleTextStyle: mono.titleLarge?.copyWith(
-          color: AppColors.white,
-          fontWeight: FontWeight.w700,
-          fontSize: 18.sp,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: AppColors.cocoa,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
         ),
-        iconTheme: const IconThemeData(color: AppColors.white),
-        systemOverlayStyle: SystemUiOverlayStyle.light.copyWith(
-          statusBarColor: AppColors.black,
-          systemNavigationBarColor: AppColors.black,
+        iconTheme: IconThemeData(color: AppColors.cocoa),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: AppColors.background,
+          systemNavigationBarIconBrightness: Brightness.dark,
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.black,
-        selectedItemColor: AppColors.white,
-        unselectedItemColor: AppColors.textDisabled,
+        backgroundColor: AppColors.surface,
+        selectedItemColor: AppColors.coral,
+        unselectedItemColor: AppColors.muted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
-        showUnselectedLabels: true,
       ),
       tabBarTheme: TabBarThemeData(
-        labelColor: AppColors.white,
-        unselectedLabelColor: AppColors.textDisabled,
-        indicatorColor: AppColors.white,
+        labelColor: AppColors.cocoa,
+        unselectedLabelColor: AppColors.muted,
+        indicatorColor: AppColors.coral,
         indicatorSize: TabBarIndicatorSize.label,
-        labelStyle: mono.titleSmall?.copyWith(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-        ),
-        unselectedLabelStyle: mono.titleSmall,
         dividerColor: AppColors.border,
       ),
       switchTheme: SwitchThemeData(
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.white;
-          return AppColors.surface;
-        }),
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.black;
-          return AppColors.textDisabled;
-        }),
-        trackOutlineColor:
-            const WidgetStatePropertyAll<Color>(AppColors.border),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? AppColors.coral
+              : AppColors.border,
+        ),
+        thumbColor: const WidgetStatePropertyAll(AppColors.white),
       ),
       inputDecorationTheme: InputDecorationTheme(
-        filled: false,
-        hoverColor: AppColors.surface,
-        fillColor: AppColors.black,
+        filled: true,
+        fillColor: AppColors.surface,
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        hintStyle: mono.bodyMedium?.copyWith(color: AppColors.textDisabled),
-        labelStyle: mono.labelLarge?.copyWith(color: AppColors.textSecondary),
-        prefixIconColor: AppColors.white,
-        suffixIconColor: AppColors.white,
-        enabledBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          borderSide: BorderSide(color: AppColors.border, width: 1),
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        hintStyle: const TextStyle(color: AppColors.textDisabled),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
-        focusedBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          borderSide: BorderSide(color: AppColors.white, width: 1),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.coral, width: 2),
         ),
-        errorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          borderSide: BorderSide(color: AppColors.white, width: 1),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.error),
         ),
-        focusedErrorBorder: const OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          borderSide: BorderSide(color: AppColors.white, width: 2),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
       ),
-      dialogTheme: const DialogThemeData(
-        backgroundColor: AppColors.black,
-        surfaceTintColor: AppColors.black,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          side: BorderSide(color: AppColors.border, width: 1),
-        ),
-        titleTextStyle: TextStyle(
-          color: AppColors.white,
-          fontFamily: 'RobotoMono',
-          fontWeight: FontWeight.w700,
-        ),
-        contentTextStyle: TextStyle(color: AppColors.white),
-      ),
-      snackBarTheme: const SnackBarThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
-        contentTextStyle: TextStyle(color: AppColors.white),
-        actionTextColor: AppColors.white,
+        surfaceTintColor: AppColors.surface,
+        elevation: 12,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.cocoa,
+        contentTextStyle: const TextStyle(color: AppColors.white),
+        actionTextColor: AppColors.peach,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          side: BorderSide(color: AppColors.border, width: 1),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.white,
-        linearTrackColor: AppColors.border,
-        circularTrackColor: AppColors.border,
+        color: AppColors.coral,
+        linearTrackColor: AppColors.creamStrong,
+        circularTrackColor: AppColors.creamStrong,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.white,
-        foregroundColor: AppColors.black,
-        elevation: 0,
-        focusElevation: 0,
-        hoverElevation: 0,
-        highlightElevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(maxRadius)),
-          side: BorderSide(color: AppColors.border, width: 1),
-        ),
+        backgroundColor: AppColors.coral,
+        foregroundColor: AppColors.white,
+        elevation: 2,
+        shape: CircleBorder(),
       ),
-      dividerColor: AppColors.border,
-      splashColor: AppColors.surface,
-      highlightColor: AppColors.surface,
+      splashColor: AppColors.peach,
+      highlightColor: AppColors.creamStrong,
     );
   }
 }

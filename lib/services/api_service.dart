@@ -70,6 +70,7 @@ class ApiService {
   Future<Map<String, dynamic>> _get(String path) async {
     final res = await _http.get(Uri.parse(_url(path)), headers: _headers);
     if (res.statusCode >= 400) {
+      if (res.statusCode == 401) await _clearSession();
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
     return jsonDecode(res.body) as Map<String, dynamic>;
@@ -78,6 +79,7 @@ class ApiService {
   Future<List<dynamic>> _getList(String path) async {
     final res = await _http.get(Uri.parse(_url(path)), headers: _headers);
     if (res.statusCode >= 400) {
+      if (res.statusCode == 401) await _clearSession();
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
     return jsonDecode(res.body) as List<dynamic>;
@@ -93,6 +95,7 @@ class ApiService {
       body: body != null ? jsonEncode(body) : null,
     );
     if (res.statusCode >= 400) {
+      if (res.statusCode == 401) await _clearSession();
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
     if (res.body.isEmpty) return <String, dynamic>{};
@@ -109,6 +112,7 @@ class ApiService {
       body: jsonEncode(body),
     );
     if (res.statusCode >= 400) {
+      if (res.statusCode == 401) await _clearSession();
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
     if (res.body.isEmpty) return <String, dynamic>{};
@@ -118,6 +122,7 @@ class ApiService {
   Future<void> _delete(String path) async {
     final res = await _http.delete(Uri.parse(_url(path)), headers: _headers);
     if (res.statusCode >= 400) {
+      if (res.statusCode == 401) await _clearSession();
       throw Exception('API error ${res.statusCode}: ${res.body}');
     }
   }
@@ -151,6 +156,11 @@ class ApiService {
     } catch (_) {
       // Best-effort server-side cleanup
     }
+    await _clearSession();
+  }
+
+  Future<void> deleteAccount() async {
+    await _delete('/v1/profile/account');
     await _clearSession();
   }
 
@@ -353,6 +363,7 @@ class ApiService {
   // ─── WebSocket (Realtime Events) ───────────────────────────────────────
 
   Timer? _wsReconnectTimer;
+  int _wsReconnectAttempt = 0;
   Timer? _wsPingTimer;
   bool _wsShouldReconnect = false;
   StreamController<NudgeModel>? _nudgeController;
@@ -420,6 +431,7 @@ class ApiService {
 
     _wsChannel!.stream.listen(
       (event) {
+        _wsReconnectAttempt = 0;
         if (event is! String) return;
         try {
           final msg = jsonDecode(event) as Map<String, dynamic>;
@@ -446,7 +458,11 @@ class ApiService {
     if (!_wsShouldReconnect) return;
     _wsPingTimer?.cancel();
     _wsReconnectTimer?.cancel();
-    _wsReconnectTimer = Timer(const Duration(seconds: 3), _wsConnect);
+    final delay = Duration(
+      seconds: (3 * (1 << _wsReconnectAttempt.clamp(0, 4))).clamp(3, 48),
+    );
+    _wsReconnectAttempt = (_wsReconnectAttempt + 1).clamp(0, 5);
+    _wsReconnectTimer = Timer(delay, _wsConnect);
   }
 
   /// Disconnect the WebSocket permanently (no reconnect).

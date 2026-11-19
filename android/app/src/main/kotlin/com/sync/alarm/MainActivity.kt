@@ -51,8 +51,14 @@ class MainActivity : FlutterActivity() {
         val data = intent?.data ?: return
         if (data.scheme == "syncalarm" && data.host == "auth-callback") {
             val code = data.getQueryParameter("code")
+            val error = data.getQueryParameter("error")
             if (!code.isNullOrEmpty()) {
                 deeplinkChannel?.invokeMethod("handleAuthCallback", code)
+            } else if (!error.isNullOrEmpty()) {
+                deeplinkChannel?.invokeMethod(
+                    "handleAuthError",
+                    error + (data.getQueryParameter("error_description")?.let { ": $it" } ?: "")
+                )
             }
         }
     }

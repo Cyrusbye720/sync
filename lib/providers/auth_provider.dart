@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/profile_model.dart';
 import '../services/api_service.dart';
-import '../services/fcm_service.dart';
 
 /// Auth state tracked by Riverpod.
 @immutable
@@ -86,7 +85,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       if (profile != null) {
         state = state.copyWith(profile: profile);
-        FcmService.instance.refreshFcmToken();
       }
     } catch (e) {
       if (kDebugMode) debugPrint('[AuthNotifier] load profile: $e');
@@ -114,6 +112,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState.initial();
   }
 
+  Future<void> deleteAccount() async {
+    try {
+      await _service.deleteAccount();
+      state = const AuthState.initial();
+    } catch (e) {
+      state = state.copyWith(error: _readableError(e));
+    }
+  }
+
   Future<void> refreshProfile() async {
     final id = state.userId;
     if (id == null) return;
@@ -127,6 +134,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await _service.exchangeCode(code);
     } catch (e) {
       state = state.copyWith(error: _readableError(e));
+    }
+
+    void setError(String message) {
+      state = state.copyWith(error: message);
     }
   }
 

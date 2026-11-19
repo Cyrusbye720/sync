@@ -136,6 +136,11 @@ class _SyncAppState extends ConsumerState<SyncApp> {
         if (code != null && code.isNotEmpty) {
           await ref.read(authProvider.notifier).handleAuthCode(code);
         }
+      } else if (call.method == 'handleAuthError') {
+        final message = call.arguments as String?;
+        if (message != null && message.isNotEmpty) {
+          ref.read(authProvider.notifier).setError(message);
+        }
       }
     });
 

@@ -1,5 +1,3 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
-
 // ─── Cloudflare Bindings ──────────────────────────────────────────────────────
 
 export interface Env {
@@ -9,10 +7,10 @@ export interface Env {
   SESSIONS: KVNamespace;
 
   // Secrets — set via `wrangler secret put`
-  SUPABASE_URL: string;
-  SUPABASE_ANON_KEY: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
-  FIREBASE_SERVICE_ACCOUNT_JSON: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  DISCORD_CLIENT_ID?: string;
+  DISCORD_CLIENT_SECRET?: string;
   SESSION_ENCRYPTION_KEY: string; // 64 hex chars (256-bit)
   ADMIN_SECRET: string;
 }
@@ -31,8 +29,6 @@ export interface ServiceAccount {
 export interface SessionRow {
   token_hash: string;
   user_id: string;
-  sb_access: string;   // encrypted
-  sb_refresh: string;  // encrypted
   created_at: number;
   expires_at: number;
 }
@@ -55,7 +51,6 @@ export interface LoginCodeRow {
 
 export interface UserContext {
   userId: string;
-  supabase: SupabaseClient;
 }
 
 // ─── Hono Variables ───────────────────────────────────────────────────────────
@@ -64,6 +59,5 @@ export type HonoEnv = {
   Bindings: Env;
   Variables: {
     userId: string;
-    supabase: SupabaseClient;
   };
 };

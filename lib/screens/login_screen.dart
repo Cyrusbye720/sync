@@ -5,13 +5,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../providers/auth_provider.dart';
 import '../services/alarm_service.dart';
 import '../theme/app_theme.dart';
-import '../widgets/monochrome_button.dart';
 import 'pair_screen.dart';
 
-/// Login screen — first surface the user sees when unauthenticated.
-///
-/// Two large OAuth buttons: Discord (primary) and GitHub (fallback).
-/// All errors are rendered as white-on-black text — no colored snackbars.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -62,88 +57,89 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.black,
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Spacer(flex: 2),
-              Text(
-                'SYNC',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.white,
-                  fontFamily: 'RobotoMono',
-                  fontWeight: FontWeight.w800,
-                  fontSize: 64.sp,
-                  letterSpacing: 8,
-                ),
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(24.w, 32, 24.w, 24),
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: const BoxDecoration(
+                color: AppColors.peach,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 4),
-              Text(
-                'MORNINGS ARE BRUTAL ENOUGH.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontFamily: 'RobotoMono',
-                  fontSize: 12.sp,
-                  letterSpacing: 4,
-                ),
-              ),
-              const Spacer(flex: 3),
-              if (error != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: AppColors.white, width: 1),
-                      bottom: BorderSide(color: AppColors.white, width: 1),
-                      left: BorderSide(color: AppColors.white, width: 1),
-                      right: BorderSide(color: AppColors.white, width: 1),
-                    ),
+              child: const Icon(Icons.wb_twilight_rounded,
+                  size: 36, color: AppColors.cocoa),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'Wake up\nbetter, together.',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontSize: 42.sp,
+                    height: 1.08,
                   ),
-                  child: Text(
-                    error.toUpperCase(),
-                    style: TextStyle(
-                      color: AppColors.white,
-                      fontFamily: 'RobotoMono',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11.sp,
-                    ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Plan shared mornings, nudge each other awake, and keep every alarm on this device.',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: AppColors.muted,
+                    height: 1.5,
+                  ),
+            ),
+            SizedBox(height: 36.h),
+            if (error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.25),
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-              MonochromeButton(
-                label: 'Sign in with Discord',
-                icon: Icons.chat_bubble_outline,
-                variant: MonoVariant.primary,
-                loading: _requestingPermissions,
-                onPressed: _signInDiscord,
+                child: Text(error,
+                    style: const TextStyle(color: AppColors.error)),
               ),
-              const SizedBox(height: 12),
-              MonochromeButton(
-                label: 'Sign in with GitHub',
-                icon: Icons.code,
-                variant: MonoVariant.outline,
-                onPressed: _signInGitHub,
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'Sign in to sync your mornings.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: AppColors.textDisabled,
-                  fontFamily: 'RobotoMono',
-                  fontSize: 10.sp,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const Spacer(),
+              const SizedBox(height: 16),
             ],
-          ),
+            FilledButton.icon(
+              onPressed: _requestingPermissions ? null : _signInDiscord,
+              icon: const Icon(Icons.forum_outlined),
+              label: const Text('Continue with Discord'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _requestingPermissions ? null : _signInGitHub,
+              icon: const Icon(Icons.code_rounded),
+              label: const Text('Continue with GitHub'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.cocoa,
+                side: const BorderSide(color: AppColors.border),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Local exact alarms stay active even if partner alerts are unavailable.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.muted,
+                fontSize: 12.sp,
+                height: 1.4,
+              ),
+            ),
+          ],
         ),
       ),
     );

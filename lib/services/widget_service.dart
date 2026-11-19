@@ -12,6 +12,8 @@ class WidgetService {
   static const _keyStatus = 'widget_status';
   static const _keyTimeText = 'widget_time_text';
   static const _keyBattery = 'widget_battery';
+  static const _keyUpdatedAt = 'widget_updated_at';
+  static const _keyState = 'widget_state';
 
   static Future<void> updateWidget({
     required String partnerName,
@@ -27,6 +29,8 @@ class WidgetService {
       await prefs.setString(_keyStatus, status);
       await prefs.setString(_keyTimeText, timeText);
       await prefs.setString(_keyBattery, battery);
+      await prefs.setString(_keyUpdatedAt, DateTime.now().toIso8601String());
+      await prefs.setString(_keyState, 'ready');
 
       await _channel.invokeMethod('updateWidget', {
         'partnerName': partnerName,

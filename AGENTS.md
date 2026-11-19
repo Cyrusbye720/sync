@@ -35,10 +35,10 @@ flutter run
 
 ### Secrets (Cloudflare Worker)
 Set via `wrangler secret put <NAME>`:
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `FIREBASE_SERVICE_ACCOUNT_JSON`
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `DISCORD_CLIENT_ID`
+- `DISCORD_CLIENT_SECRET`
 - `SESSION_ENCRYPTION_KEY` (64 hex chars)
 - `ADMIN_SECRET`
 
@@ -112,7 +112,7 @@ The Worker's stored Supabase access token may be expired. `resolveSession` in `a
 The signup trigger may have failed. The profile GET route auto-creates via admin client if missing.
 
 ### Nudge not delivering
-Check `SUPABASE_SERVICE_ROLE_KEY` is set. Check FCM token exists in profiles table. Check Firebase service account JSON is valid.
+Check Worker WebSocket connectivity and D1 `nudges` rows. Killed-app push delivery requires a native open push provider; local exact alarms remain independent.
 
 ## Conventions
 - TypeScript with strict mode in Worker

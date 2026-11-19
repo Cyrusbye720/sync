@@ -1,15 +1,15 @@
 /// Build-time API configuration.
 ///
 /// The single value `API_BASE_URL` can be injected via `--dart-define` by CI,
-/// defaulting to the live Cloudflare Worker endpoint `https://sync-api.indsasuke59.workers.dev`.
-/// This is the ONLY backend credential the app needs — all Supabase and
-/// Firebase secrets live exclusively in the Cloudflare Worker.
+/// defaulting to the live D1-native Cloudflare Worker endpoint
+/// `https://sync-api.sonoxel-edge.workers.dev`.
+/// This is the only backend endpoint the app needs.
 class ApiConfig {
   ApiConfig._();
 
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://sync-api.indsasuke59.workers.dev',
+    defaultValue: 'https://sync-api.sonoxel-edge.workers.dev',
   );
 
   /// Deep-link scheme used for OAuth callback from the Worker.

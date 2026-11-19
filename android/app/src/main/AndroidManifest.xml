@@ -69,12 +69,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- FCM notification tap (background / killed) -->
-            <intent-filter>
-                <action android:name="FLUTTER_NOTIFICATION_CLICK" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
             <!-- Supabase OAuth deep link -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -125,15 +119,6 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/sync_widget_info" />
         </receiver>
-
-        <!-- FCM default notification channel id. Required so that
-             data-only FCM messages surfaced by the system tray
-             (foreground / background / terminated) get the right
-             channel + importance. We use sync_default, created at
-             runtime by alarm_service.dart. -->
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="sync_default" />
 
         <meta-data
             android:name="flutterEmbedding"

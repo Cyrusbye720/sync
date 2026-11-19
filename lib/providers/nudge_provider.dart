@@ -20,6 +20,7 @@ final nudgeStreamProvider = StreamProvider<List<NudgeModel>>((ref) {
   final controller = StreamController<List<NudgeModel>>();
   final nudges = <NudgeModel>[];
   final seenIds = <String>{};
+  Timer? reconciliationTimer;
 
   void addNudge(NudgeModel nudge) {
     if (seenIds.contains(nudge.id)) return;
@@ -59,7 +60,19 @@ final nudgeStreamProvider = StreamProvider<List<NudgeModel>>((ref) {
     onError: (_) {},
   );
 
+  // Reconcile missed WebSocket deliveries while the app is alive. History
+  // de-duplicates nudges by ID, so retries and reconnects are harmless.
+  reconciliationTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    try {
+      final history = await ApiService.instance.fetchNudges();
+      for (final nudge in history) {
+        if (!seenIds.contains(nudge.id)) addNudge(nudge);
+      }
+    } catch (_) {}
+  });
+
   ref.onDispose(() {
+    reconciliationTimer?.cancel();
     sub.cancel();
     controller.close();
   });

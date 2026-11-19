@@ -4,7 +4,7 @@
 
 import { z } from 'zod';
 
-const uuid = z.string().uuid();
+const id = z.string().min(1).max(128);
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
@@ -31,8 +31,8 @@ export const PairingClaimSchema = z
 
 export const AlarmCreateSchema = z
   .object({
-    owner_id: uuid,
-    created_by: uuid.optional(),
+    owner_id: id,
+    created_by: id.optional(),
     label: z.string().min(1).max(128).default('Alarm'),
     message: z.string().max(256).default('Wake up!'),
     hour: z.number().int().min(0).max(23),
@@ -63,10 +63,10 @@ export const AlarmUpdateSchema = z
 
 export const AlarmLogCreateSchema = z
   .object({
-    alarm_id: uuid,
+    alarm_id: id,
     action: z.enum(['fired', 'snoozed', 'dismissed']),
     reaction: z.string().max(256).nullable().optional(),
-    acted_by: uuid.nullable().optional(),
+    acted_by: id.nullable().optional(),
   })
   .strict();
 
@@ -80,7 +80,7 @@ export const AlarmLogUpdateSchema = z
 
 export const NudgeCreateSchema = z
   .object({
-    to_user_id: uuid,
+    to_user_id: id,
   })
   .strict();
 

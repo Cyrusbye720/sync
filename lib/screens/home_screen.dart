@@ -261,12 +261,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               _showAnnouncementsSheet(context, items);
             },
           ),
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout, color: AppColors.white),
-            onPressed: () async {
-              await ref.read(authProvider.notifier).signOut();
+          PopupMenuButton<String>(
+            tooltip: 'Account',
+            icon: const Icon(Icons.more_horiz_rounded),
+            onSelected: (value) async {
+              if (value == 'signout') {
+                await ref.read(authProvider.notifier).signOut();
+              } else if (value == 'delete') {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Delete account?'),
+                    content: const Text(
+                      'This permanently removes your SYNC account and profile.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Delete account'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed == true) {
+                  await ref.read(authProvider.notifier).deleteAccount();
+                }
+              }
             },
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'signout', child: Text('Sign out')),
+              PopupMenuItem(value: 'delete', child: Text('Delete account')),
+            ],
           ),
         ],
         bottom: PreferredSize(

@@ -7,14 +7,12 @@
  * Announcements are delivered via:
  * 1. Stored in D1 so users can fetch them on app open
  * 2. WebSocket broadcast to all connected clients
- * 3. FCM push to all paired users (best-effort)
+ * 3. Poll/list reconciliation for app-open clients
  */
 
 import { Hono } from 'hono';
-import { createClient } from '@supabase/supabase-js';
-import type { HonoEnv, ServiceAccount } from '../types.js';
+import type { HonoEnv } from '../types.js';
 import { fanOutAnnouncement } from '../websocket.js';
-import { sendFcmNotification } from '../fcm.js';
 import { logEvent } from '../logger.js';
 
 const announcements = new Hono<HonoEnv>();
@@ -105,66 +103,17 @@ announcements.post('/', async (c) => {
 
   fanOutAnnouncement(announcementData);
 
-  // Best-effort FCM push to paired users
-  let fcmResult = 'skipped';
-  try {
-    const adminClient = createClient(
-      c.env.SUPABASE_URL,
-      c.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { persistSession: false } },
-    );
-
-    // Get all profiles with FCM tokens
-    const { data: profiles } = await adminClient
-      .from('profiles')
-      .select('id, fcm_token')
-      .not('fcm_token', 'is', null);
-
-    if (profiles && profiles.length > 0) {
-      let sa: ServiceAccount;
-      try {
-        sa = JSON.parse(c.env.FIREBASE_SERVICE_ACCOUNT_JSON) as ServiceAccount;
-      } catch {
-        fcmResult = 'invalid_sa';
-        return c.json({
-          ok: true,
-          announcement_id: announcementId,
-          fcm: fcmResult,
-        });
-      }
-
-      let sent = 0;
-      for (const p of profiles) {
-        if (p.fcm_token) {
-          const result = await sendFcmNotification(
-            c.env,
-            p.id,
-            sa,
-            p.fcm_token,
-            title,
-            content,
-          );
-          if (result.success) sent++;
-        }
-      }
-      fcmResult = `sent_${sent}_of_${profiles.length}`;
-    }
-  } catch {
-    // FCM is best-effort
-  }
-
   await logEvent(c.env, {
     level: 'info',
     route: 'POST /v1/announcements',
     message: `Announcement sent: ${title}`,
-    details: { id: announcementId, fcm: fcmResult },
+    details: { id: announcementId, delivery: 'websocket-or-poll' },
     userId: userId ?? undefined,
   });
 
   return c.json({
     ok: true,
     announcement_id: announcementId,
-    fcm: fcmResult,
   });
 });
 
