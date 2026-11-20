@@ -29,7 +29,7 @@ dependencies:
   # System
   battery_plus: ^5.0.3
   flutter_timezone: ^5.1.0
-  wakelock_plus: ^1.7.0
+  wakelock_plus: 1.4.0
   flutter_background_service: ^5.1.0
 
   # UI
