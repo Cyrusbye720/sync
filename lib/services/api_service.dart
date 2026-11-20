@@ -17,9 +17,9 @@ import '../models/profile_model.dart';
 
 /// HTTP API client for the Cloudflare Worker backend.
 ///
-/// Replaces the old `SupabaseService`. The app communicates exclusively
-/// with the Worker over HTTPS using opaque session tokens. No Supabase
-/// URL, anon key, or Firebase credentials exist in the app.
+/// The app communicates exclusively with the Cloudflare Worker over HTTPS
+/// using opaque session tokens. No Supabase or Firebase credentials exist
+/// in the app.
 class ApiService {
   ApiService._();
 

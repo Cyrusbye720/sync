@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Domain model for the Supabase `profiles` table.
+/// Domain model for the D1 `profiles` table.
 @immutable
 class ProfileModel {
   final String id;

@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Domain model mirroring the Supabase `alarms` table.
+/// Domain model mirroring the D1 `alarms` table.
 ///
-/// The full schema is in `supabase/init.sql`. `weekdays` is stored as a
-/// Postgres `int[]` of 1..7 (Mon..Sun) — this matches what `intl` and
-/// `DateTime.weekday` return.
+/// `weekdays` is stored as a JSON array of 1..7 (Mon..Sun).
 @immutable
 class AlarmModel {
   final String id;

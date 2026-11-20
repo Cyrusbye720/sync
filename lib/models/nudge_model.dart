@@ -1,11 +1,8 @@
 /// Nudge event.
 ///
 /// One row is inserted into `nudges` every time a user taps the
-/// `WAKE THEM` button. The recipient's app subscribes to new rows via
-/// Supabase Realtime while it is open and shows a full-screen overlay.
-/// This is the in-app-only replacement for the FCM push that the
-/// project used to send — fewer moving parts, no third-party push
-/// dependencies, and no Firebase credentials to manage.
+/// `WAKE THEM` button. The Worker broadcasts new rows over WebSocket while
+/// the app is open and reconciliation polling recovers missed deliveries.
 class NudgeModel {
   final String id;
   final String fromUser;

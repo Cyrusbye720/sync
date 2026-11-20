@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Domain model for the Supabase `pairings` table.
+/// Domain model for the D1 `pairings` table.
 ///
 /// One of `userA` / `userB` is always the current user; the other is the
 /// partner. The `invite_code` is generated server-side and persists on the
-/// row so client and server agree on the same code (see `supabase/init.sql`).
+/// row so client and server agree on the same code.
 @immutable
 class PairingModel {
   final String id;

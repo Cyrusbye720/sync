@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Domain model for the Supabase `alarm_logs` table.
+/// Domain model for D1-backed alarm logs.
 ///
 /// One row per fired-alarm action. `reaction` is set after dismiss from
 /// the ring screen.
