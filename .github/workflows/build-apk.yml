@@ -41,6 +41,7 @@ jobs:
         with:
           channel: 'stable'
           cache: true
+          flutter-version: '3.35.0'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
