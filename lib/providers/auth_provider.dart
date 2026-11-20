@@ -135,10 +135,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       state = state.copyWith(error: _readableError(e));
     }
+  }
 
-    void setError(String message) {
-      state = state.copyWith(error: message);
-    }
+  void setError(String message) {
+    state = state.copyWith(error: message);
   }
 
   String _readableError(Object e) {
